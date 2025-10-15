@@ -8,6 +8,7 @@ model User {
   updatedAt     DateTime
   sessions      Session[]
   accounts      Account[]
+  floorsCreated Floor[]   @relation("UserFloors")
 
   @@unique([email])
   @@map("user")

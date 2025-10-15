@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import z from "zod";
 import prisma from "@sightmap/db";
 import { protectedProcedure, router } from "../index";
-import { StepSizeEnum } from "../../../db/prisma/generated/enums";
+import { StepSize } from "../../../db/prisma/generated/enums";
 
 export const userSettingsRouter = router({
   // Get user settings (step size)
@@ -21,7 +21,7 @@ export const userSettingsRouter = router({
 
   // Update step size
   updateStepSize: protectedProcedure
-    .input(z.object({ stepSize: z.enum(StepSizeEnum) }))
+    .input(z.object({ stepSize: z.enum(StepSize) }))
     .mutation(async ({ ctx, input }) => {
       try {
         return await prisma.userSettings.upsert({

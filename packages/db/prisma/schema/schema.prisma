@@ -11,34 +11,104 @@ datasource db {
 }
 
 model Building {
-  id        String   @id @default(uuid())
-  name      String
-  address   String?
-  floors    Floor[]
+  id   String @id @default(cuid())
+  name String
+
+  floors Floor[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Floor {
-  id         String   @id @default(uuid())
-  name       String
-  level      Int
+  id String @id @default(cuid())
+
+  name      String
+  level     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rooms Room[]
+
   building   Building @relation(fields: [buildingId], references: [id])
   buildingId String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+
+  createdBy   User   @relation("UserFloors", fields: [createdById], references: [id])
+  createdById String
 }
 
-enum StepSizeEnum {
+model Room {
+  id String @id @default(cuid())
+
+  floor   Floor  @relation(fields: [floorId], references: [id])
+  floorId String
+
+  name      String
+  number    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  startXCoords Float
+  startYCoords Float
+  endXCoords   Float
+  endYCoords   Float
+
+  doorXCoords Float
+  doorYCoords Float
+
+  fromPaths Path[] @relation("RoomFrom")
+  toPaths   Path[] @relation("RoomTo")
+}
+
+model Path {
+  id String @id @default(cuid())
+
+  fromRoom   Room   @relation("RoomFrom", fields: [fromRoomId], references: [id])
+  fromRoomId String
+  toRoom     Room   @relation("RoomTo", fields: [toRoomId], references: [id])
+  toRoomId   String
+
+  instructionSet InstructionSet?
+
+  anchors PathAnchor[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InstructionSet {
+  id     String @id @default(cuid())
+  path   Path   @relation(fields: [pathId], references: [id])
+  pathId String @unique
+
+  descriptiveInstructions String[]
+  conciseInstructions     String[]
+}
+
+
+model UserSettings {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  stepSize  StepSize @default(MEDIUM)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum StepSize {
   SMALL
   MEDIUM
   LARGE
 }
 
-model UserSettings {
-  id        String       @id @default(uuid())
-  userId    String       @unique
-  stepSize  StepSizeEnum @default(MEDIUM)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+// format of instruction
+// Facing straight, go ahead {{10}}, turn left and move {{20}}
+
+model PathAnchor {
+  id    String @id @default(cuid())
+  index Int
+
+  xCoords Float
+  yCoords Float
+  path    Path   @relation(fields: [pathId], references: [id])
+  pathId  String
 }
