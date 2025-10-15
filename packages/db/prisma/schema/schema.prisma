@@ -9,3 +9,36 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model Building {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  floors    Floor[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Floor {
+  id         String   @id @default(uuid())
+  name       String
+  level      Int
+  building   Building @relation(fields: [buildingId], references: [id])
+  buildingId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+enum StepSizeEnum {
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+model UserSettings {
+  id        String       @id @default(uuid())
+  userId    String       @unique
+  stepSize  StepSizeEnum @default(MEDIUM)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}

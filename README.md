@@ -22,6 +22,7 @@ First, install the dependencies:
 ```bash
 bun install
 ```
+
 ## Database Setup
 
 This project uses PostgreSQL with Prisma.
@@ -30,10 +31,10 @@ This project uses PostgreSQL with Prisma.
 2. Update your `apps/server/.env` file with your PostgreSQL connection details.
 
 3. Generate the Prisma client and push the schema:
+
 ```bash
 bun db:push
 ```
-
 
 Then, run the development server:
 
@@ -43,12 +44,6 @@ bun dev
 
 Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
 The API is running at [http://localhost:3000](http://localhost:3000).
-
-
-
-
-
-
 
 ## Project Structure
 
@@ -72,3 +67,17 @@ sightmap/
 - `bun check-types`: Check TypeScript types across all apps
 - `bun db:push`: Push schema changes to database
 - `bun db:studio`: Open database studio UI
+
+---
+
+## TODO
+
+- [ ] Analyze requirements and select the correct Prisma schema location
+- [ ] Integrate Prisma schema into backend (db package)
+- [ ] Generate and apply Prisma migrations
+- [ ] Implement CRUD endpoints for Building (API)
+- [ ] Implement CRUD endpoints for Floor (nested under Building)
+- [ ] Add user settings for step size (DB + API)
+- [ ] Update frontend to support CRUD for Building/Floor and user settings
+- [ ] Improve UI styling and make the UI look cool
+- [ ] Test all new features and flows
