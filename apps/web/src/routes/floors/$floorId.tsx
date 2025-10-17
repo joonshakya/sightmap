@@ -11,11 +11,11 @@ export const Route = createFileRoute("/floors/$floorId")({
 function FloorMap() {
   const { floorId } = Route.useParams();
   const floorQuery = useQuery(
-    trpc.building.getFloorDetails.queryOptions({ id: floorId })
+    trpc.floor.getById.queryOptions({ id: floorId })
   );
   // Move useMutation to top-level, before any return
   const updateRoom = useMutation(
-    trpc.building.updateRoomCoordinates.mutationOptions()
+    trpc.floor.updateRoomCoordinates.mutationOptions()
   );
 
   if (floorQuery.isLoading) return <div>Loading...</div>;
@@ -30,10 +30,10 @@ function FloorMap() {
       (room): Rectangle => ({
         id: room.id,
         type: "rectangle",
-        x: room.startXCoords,
-        y: room.startYCoords,
-        width: room.endXCoords - room.startXCoords,
-        height: room.endYCoords - room.startYCoords,
+        x: room.x,
+        y: room.y,
+        width: room.width,
+        height: room.height,
         text: room.name,
         fill: "#f5f5f5",
         rotation: 0,
@@ -48,17 +48,17 @@ function FloorMap() {
       .forEach((rect) => {
         updateRoom.mutate({
           id: rect.id,
-          startXCoords: rect.x,
-          startYCoords: rect.y,
-          endXCoords: rect.x + rect.width,
-          endYCoords: rect.y + rect.height,
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
         });
       });
   };
 
   return (
     <div>
-      <h2>Floor: {data.name}</h2>
+      <h2>Floor: {data.level}</h2>
       <DrawingCanvas
         key={floorId}
         initialData={{ shapes: rectangles, zoom: 1 }}

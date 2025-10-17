@@ -37,7 +37,7 @@ import type {
   MapData,
   GridConfig,
 } from "@/types/shapes";
-import { v4 as uuidv4 } from "uuid";
+import cuid from "cuid";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type { Stage as StageType } from "konva/lib/Stage";
 
@@ -263,7 +263,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
     if (tool === "rectangle") {
       setCurrentShape({
-        id: uuidv4(),
+        id: cuid(),
         type: "rectangle",
         x: snappedX,
         y: snappedY,
@@ -277,7 +277,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       });
     } else if (tool === "arrow") {
       setCurrentShape({
-        id: uuidv4(),
+        id: cuid(),
         type: "arrow",
         points: [snappedX, snappedY, snappedX, snappedY],
         stroke: "#000000",

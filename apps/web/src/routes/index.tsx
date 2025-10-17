@@ -76,17 +76,17 @@ function RouteComponent() {
     })
   );
   const createFloor = useMutation(
-    trpc.building.createFloor.mutationOptions({
+    trpc.floor.create.mutationOptions({
       onSuccess: () => {
         buildingsQuery.refetch();
         toast.success("Floor created!");
-        setFloorName("");
-        setFloorLevel(1);
+        // Reset to next available level after creation
+        setFloorLevel(nextAvailableLevel);
       },
     })
   );
   const deleteFloor = useMutation(
-    trpc.building.deleteFloor.mutationOptions({
+    trpc.floor.delete.mutationOptions({
       onSuccess: () => {
         buildingsQuery.refetch();
         toast.success("Floor deleted!");
@@ -109,7 +109,6 @@ function RouteComponent() {
 
   // Local state for forms
   const [buildingName, setBuildingName] = useState("");
-  const [floorName, setFloorName] = useState("");
   const [floorLevel, setFloorLevel] = useState(1);
   const [stepSize, setStepSize] = useState<StepSizeEnum>("MEDIUM");
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -129,6 +128,24 @@ function RouteComponent() {
     (b) => b.id === selectedBuildingId
   );
 
+  // Calculate next available floor level
+  const nextAvailableLevel = React.useMemo(() => {
+    if (!selectedBuilding?.floors?.length) return 1;
+
+    const existingLevels = selectedBuilding.floors
+      .map((floor) => floor.level)
+      .sort((a, b) => a - b);
+
+    // Find the first missing level starting from 1
+    for (let i = 1; i <= existingLevels.length + 1; i++) {
+      if (!existingLevels.includes(i)) {
+        return i;
+      }
+    }
+
+    return existingLevels.length + 1;
+  }, [selectedBuilding?.floors]);
+
   // Sync stepSize with userSettingsQuery
   React.useEffect(() => {
     const stepSize = (
@@ -140,6 +157,11 @@ function RouteComponent() {
       setStepSize(stepSize);
     }
   }, [userSettingsQuery.data]);
+
+  // Update floor level to next available level when building changes
+  React.useEffect(() => {
+    setFloorLevel(nextAvailableLevel);
+  }, [nextAvailableLevel]);
 
   // Handle update step size
   const handleUpdateStepSize = (value: StepSizeEnum) => {
@@ -266,20 +288,12 @@ function RouteComponent() {
                   className="flex gap-2"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    if (floorName) {
-                      createFloor.mutate({
-                        buildingId: selectedBuilding.id,
-                        name: floorName,
-                        level: floorLevel,
-                      });
-                    }
+                    createFloor.mutate({
+                      buildingId: selectedBuilding.id,
+                      level: floorLevel,
+                    });
                   }}
                 >
-                  <Input
-                    placeholder="Floor Name"
-                    value={floorName}
-                    onChange={(e) => setFloorName(e.target.value)}
-                  />
                   <Input
                     type="number"
                     placeholder="Level"
@@ -292,7 +306,7 @@ function RouteComponent() {
                   />
                   <Button
                     type="submit"
-                    disabled={createFloor.isPending || !floorName}
+                    disabled={createFloor.isPending}
                   >
                     Add Floor
                   </Button>
@@ -312,9 +326,7 @@ function RouteComponent() {
                         (window.location.href = `/floors/${floor.id}`)
                       }
                     >
-                      <span>
-                        {floor.name} (Level {floor.level})
-                      </span>
+                      <span>(Level {floor.level})</span>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
