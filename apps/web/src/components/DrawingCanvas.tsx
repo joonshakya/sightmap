@@ -29,6 +29,7 @@ import {
   Text,
   Line,
   Transformer,
+  Group,
 } from "react-konva";
 import type {
   Shape,
@@ -668,22 +669,32 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
             if (shape.type === "rectangle") {
               return (
                 <React.Fragment key={shape.id}>
-                  <Rect
-                    id={shape.id}
-                    x={shape.x}
-                    y={shape.y}
-                    width={shape.width}
-                    height={shape.height}
-                    fill={shape.fill}
-                    stroke="#000000"
-                    rotation={shape.rotation}
-                    scaleX={shape.scaleX}
-                    scaleY={shape.scaleY}
-                    draggable={tool !== "pan"}
-                    onDragEnd={handleDragEnd}
-                    onClick={() => setSelectedId(shape.id)}
-                    onTap={() => setSelectedId(shape.id)}
-                  />
+                  <Group>
+                    <Rect
+                      x={shape.x}
+                      y={shape.y}
+                      width={shape.width}
+                      height={shape.height}
+                      stroke="#ccc"
+                      strokeWidth={2 * gridConfig.size}
+                      fill=""
+                    />
+                    <Rect
+                      id={shape.id}
+                      x={shape.x}
+                      y={shape.y}
+                      width={shape.width}
+                      height={shape.height}
+                      fill={shape.fill}
+                      rotation={shape.rotation}
+                      scaleX={shape.scaleX}
+                      scaleY={shape.scaleY}
+                      draggable={tool !== "pan"}
+                      onDragEnd={handleDragEnd}
+                      onClick={() => setSelectedId(shape.id)}
+                      onTap={() => setSelectedId(shape.id)}
+                    />
+                  </Group>
                   <Text
                     x={shape.x}
                     y={shape.y}
@@ -733,14 +744,24 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           {currentShape && (
             <>
               {currentShape.type === "rectangle" && (
-                <Rect
-                  x={(currentShape as Rectangle).x}
-                  y={(currentShape as Rectangle).y}
-                  width={(currentShape as Rectangle).width}
-                  height={(currentShape as Rectangle).height}
-                  fill={(currentShape as Rectangle).fill}
-                  stroke="#000000"
-                />
+                <Group>
+                  <Rect
+                    x={(currentShape as Rectangle).x}
+                    y={(currentShape as Rectangle).y}
+                    width={(currentShape as Rectangle).width}
+                    height={(currentShape as Rectangle).height}
+                    stroke="#ccc"
+                    strokeWidth={2 * gridConfig.size}
+                    fill=""
+                  />
+                  <Rect
+                    x={(currentShape as Rectangle).x}
+                    y={(currentShape as Rectangle).y}
+                    width={(currentShape as Rectangle).width}
+                    height={(currentShape as Rectangle).height}
+                    fill={(currentShape as Rectangle).fill}
+                  />
+                </Group>
               )}
               {currentShape.type === "arrow" && (
                 <Arrow
