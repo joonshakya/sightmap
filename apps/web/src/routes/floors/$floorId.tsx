@@ -1,9 +1,8 @@
-// Route: /floors/$floorId
-import React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { trpc } from "../../utils/trpc";
-import DrawingCanvas from "../../components/DrawingCanvas";
+import { trpc } from "@/utils/trpc";
+import DrawingCanvas from "@/components/DrawingCanvas";
+import type { MapData, Rectangle } from "@/types/shapes";
 
 export const Route = createFileRoute("/floors/$floorId")({
   component: FloorMap,
@@ -28,7 +27,7 @@ function FloorMap() {
   // Map Room[] to Rectangle[]
   const rectangles =
     data.rooms?.map(
-      (room): import("../../types/shapes").Rectangle => ({
+      (room): Rectangle => ({
         id: room.id,
         type: "rectangle",
         x: room.startXCoords,
@@ -43,10 +42,8 @@ function FloorMap() {
       })
     ) || [];
 
-  const handleSave = (
-    mapData: import("../../types/shapes").MapData
-  ) => {
-    (mapData.shapes as import("../../types/shapes").Rectangle[])
+  const handleSave = (mapData: MapData) => {
+    (mapData.shapes as Rectangle[])
       .filter((shape) => shape.type === "rectangle")
       .forEach((rect) => {
         updateRoom.mutate({

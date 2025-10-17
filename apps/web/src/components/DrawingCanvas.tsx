@@ -4,13 +4,13 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { Button } from "./ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "./ui/tooltip";
+} from "@/components/ui/tooltip";
 import {
   Square,
   ArrowRight,
@@ -36,7 +36,7 @@ import type {
   Arrow as ArrowType,
   MapData,
   GridConfig,
-} from "../types/shapes";
+} from "@/types/shapes";
 import { v4 as uuidv4 } from "uuid";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type { Stage as StageType } from "konva/lib/Stage";
