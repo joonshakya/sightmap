@@ -96,6 +96,8 @@ export const floorRouter = router({
         y: z.number(),
         width: z.number(),
         height: z.number(),
+        doorX: z.number().optional(),
+        doorY: z.number().optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -108,6 +110,8 @@ export const floorRouter = router({
           y: input.y,
           width: input.width,
           height: input.height,
+          doorX: input.doorX,
+          doorY: input.doorY,
         },
         include: {
           floor: {
@@ -147,6 +151,8 @@ export const floorRouter = router({
         y: z.number(),
         width: z.number(),
         height: z.number(),
+        doorX: z.number().optional(),
+        doorY: z.number().optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -158,6 +164,8 @@ export const floorRouter = router({
             y: input.y,
             width: input.width,
             height: input.height,
+            doorX: input.doorX,
+            doorY: input.doorY,
           },
           include: {
             floor: {

@@ -61,7 +61,9 @@ function RouteComponent() {
     x: number,
     y: number,
     width: number,
-    height: number
+    height: number,
+    doorX?: number,
+    doorY?: number
   ) => {
     const roomNumber = `Room ${
       (floorData.data?.rooms.length || 0) + 1
@@ -74,6 +76,8 @@ function RouteComponent() {
       y,
       width,
       height,
+      doorX,
+      doorY,
     });
   };
 
