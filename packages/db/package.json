@@ -26,6 +26,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@sightmap/common": "workspace:*",
     "@prisma/client": "catalog:",
     "dotenv": "catalog:",
     "zod": "catalog:"

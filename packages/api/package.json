@@ -28,6 +28,7 @@
     "dotenv": "catalog:",
     "zod": "catalog:",
     "@sightmap/auth": "workspace:*",
+    "@sightmap/common": "workspace:*",
     "@sightmap/db": "workspace:*"
   }
 }

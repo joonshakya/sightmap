@@ -1,0 +1,12 @@
+{
+  "name": "@sightmap/common",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./index.ts"
+    },
+    "./*": {
+      "default": "./*.ts"
+    }
+  }
+}

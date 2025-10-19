@@ -266,7 +266,7 @@ export const floorRouter = router({
         ),
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }) => {
       return await prisma.$transaction(async (tx) => {
         // Update floor if level provided
         if (input.level !== undefined) {

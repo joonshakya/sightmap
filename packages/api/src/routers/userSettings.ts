@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import z from "zod";
 import prisma from "@sightmap/db";
 import { protectedProcedure, router } from "../index";
-import { StepSize } from "../../../db/prisma/generated/enums";
+import { StepSize } from "@sightmap/common/prisma/enums";
 
 export const userSettingsRouter = router({
   // Get user settings (step size)

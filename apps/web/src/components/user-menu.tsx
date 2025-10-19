@@ -15,14 +15,8 @@ import { Link } from "@tanstack/react-router";
 import { trpc } from "@/utils/trpc";
 import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-
-const STEP_SIZE_LABELS = {
-  SMALL: "Small",
-  MEDIUM: "Medium",
-  LARGE: "Large",
-};
-
-type StepSizeEnum = keyof typeof STEP_SIZE_LABELS;
+import { StepSize } from "@sightmap/common/prisma/enums";
+import { toTitleCase } from "@sightmap/common";
 
 function StepSizeDropdown() {
   const userSettingsQuery = useQuery(
@@ -33,15 +27,15 @@ function StepSizeDropdown() {
       onSuccess: () => userSettingsQuery.refetch(),
     })
   );
-  const [stepSize, setStepSize] = useState<StepSizeEnum>("MEDIUM");
+  const [stepSize, setStepSize] = useState<StepSize>("MEDIUM");
 
   React.useEffect(() => {
     if (userSettingsQuery.data?.stepSize) {
-      setStepSize(userSettingsQuery.data.stepSize as StepSizeEnum);
+      setStepSize(userSettingsQuery.data.stepSize as StepSize);
     }
   }, [userSettingsQuery.data?.stepSize]);
 
-  const handleUpdateStepSize = (value: StepSizeEnum) => {
+  const handleUpdateStepSize = (value: StepSize) => {
     setStepSize(value);
     updateStepSize.mutate({ stepSize: value });
   };
@@ -80,6 +74,17 @@ function StepSizeDropdown() {
         <circle cx="10" cy="10" r="8" />
       </svg>
     ),
+    EXTRA_LARGE: (
+      <svg
+        className="w-6 h-6 mr-2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        viewBox="0 0 20 20"
+      >
+        <circle cx="10" cy="10" r="8" />
+      </svg>
+    ),
   };
 
   return (
@@ -88,27 +93,25 @@ function StepSizeDropdown() {
         Step Size
       </DropdownMenuLabel>
       <div className="flex flex-col gap-1 px-1 pb-1">
-        {(["SMALL", "MEDIUM", "LARGE"] as StepSizeEnum[]).map(
-          (size) => (
-            <DropdownMenuItem
-              key={size}
-              onClick={() => handleUpdateStepSize(size)}
-              className={`flex items-center rounded-md transition-colors ${
-                stepSize === size
-                  ? "bg-primary/10 text-primary font-semibold"
-                  : ""
-              }`}
-            >
-              {icons[size]}
-              <span>{STEP_SIZE_LABELS[size]}</span>
-              {stepSize === size && (
-                <span className="ml-auto text-xs text-primary font-bold">
-                  ✓
-                </span>
-              )}
-            </DropdownMenuItem>
-          )
-        )}
+        {Object.values(StepSize).map((size) => (
+          <DropdownMenuItem
+            key={size}
+            onClick={() => handleUpdateStepSize(size)}
+            className={`flex items-center rounded-md transition-colors ${
+              stepSize === size
+                ? "bg-primary/10 text-primary font-semibold"
+                : ""
+            }`}
+          >
+            {icons[size]}
+            <span>{toTitleCase(StepSize[size])}</span>
+            {stepSize === size && (
+              <span className="ml-auto text-xs text-primary font-bold">
+                ✓
+              </span>
+            )}
+          </DropdownMenuItem>
+        ))}
       </div>
       <DropdownMenuSeparator />
     </>
