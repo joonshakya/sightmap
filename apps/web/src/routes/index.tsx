@@ -246,14 +246,16 @@ function RouteComponent() {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel
-                          onClick={() =>
-                            setConfirmDeleteBuildingId(null)
-                          }
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDeleteBuildingId(null);
+                          }}
                         >
                           Cancel
                         </AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             deleteBuilding.mutate({
                               id: building.id,
                             });
@@ -332,9 +334,10 @@ function RouteComponent() {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() =>
-                              setConfirmDeleteFloorId(floor.id)
-                            }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDeleteFloorId(floor.id);
+                            }}
                           >
                             Delete
                           </Button>
@@ -348,14 +351,16 @@ function RouteComponent() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel
-                              onClick={() =>
-                                setConfirmDeleteFloorId(null)
-                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmDeleteFloorId(null);
+                              }}
                             >
                               Cancel
                             </AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 deleteFloor.mutate({ id: floor.id });
                                 setConfirmDeleteFloorId(null);
                               }}

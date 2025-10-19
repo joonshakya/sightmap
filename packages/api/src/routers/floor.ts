@@ -85,11 +85,64 @@ export const floorRouter = router({
       }
     }),
 
+  // Create a room
+  createRoom: protectedProcedure
+    .input(
+      z.object({
+        floorId: z.cuid(),
+        name: z.string(),
+        number: z.string(),
+        x: z.number(),
+        y: z.number(),
+        width: z.number(),
+        height: z.number(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await prisma.room.create({
+        data: {
+          floorId: input.floorId,
+          name: input.name,
+          number: input.number,
+          x: input.x,
+          y: input.y,
+          width: input.width,
+          height: input.height,
+        },
+        include: {
+          floor: {
+            include: {
+              building: true,
+            },
+          },
+        },
+      });
+    }),
+
+  // Delete a room
+  deleteRoom: protectedProcedure
+    .input(z.object({ id: z.cuid() }))
+    .mutation(async ({ input }) => {
+      try {
+        return await prisma.room.delete({
+          where: { id: input.id },
+        });
+      } catch (error: any) {
+        if (error.code === "P2025") {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Room not found",
+          });
+        }
+        throw error;
+      }
+    }),
+
   // Update room coordinates (for drawing)
   updateRoomCoordinates: publicProcedure
     .input(
       z.object({
-        id: z.cuid(),
+        roomId: z.cuid(),
         x: z.number(),
         y: z.number(),
         width: z.number(),
@@ -99,7 +152,7 @@ export const floorRouter = router({
     .mutation(async ({ input }) => {
       try {
         return await prisma.room.update({
-          where: { id: input.id },
+          where: { id: input.roomId },
           data: {
             x: input.x,
             y: input.y,
@@ -167,64 +220,7 @@ export const floorRouter = router({
         });
       }
 
-      // Transform rooms into rectangles for DrawingCanvas
-      const roomShapes = floor.rooms.map((room) => ({
-        id: room.id,
-        type: "rectangle" as const,
-        x: room.x,
-        y: room.y,
-        width: room.width,
-        height: room.height,
-        text: `${room.name} (${room.number})`,
-        fill: "#ffffff",
-        rotation: 0,
-        scaleX: 1,
-        scaleY: 1,
-      }));
-
-      // Transform paths into arrows for DrawingCanvas
-      const pathShapes = floor.rooms.flatMap((room) =>
-        room.fromPaths.map((path) => {
-          // Create arrow from room door to first anchor or directly to destination
-          const startX = room.doorX;
-          const startY = room.doorY;
-
-          let endX, endY;
-          if (
-            path.anchors &&
-            path.anchors.length > 0 &&
-            path.anchors[0]
-          ) {
-            // Use first anchor as end point for the arrow
-            endX = path.anchors[0].xCoords;
-            endY = path.anchors[0].yCoords;
-          } else {
-            // Direct connection to destination room door
-            endX = path.toRoom.doorX;
-            endY = path.toRoom.doorY;
-          }
-
-          return {
-            id: path.id,
-            type: "arrow" as const,
-            points: [startX, startY, endX, endY],
-            stroke: "#000000",
-            isSnapped: false,
-          };
-        })
-      );
-
-      return {
-        floor: {
-          id: floor.id,
-          level: floor.level,
-          building: floor.building,
-        },
-        shapes: [...roomShapes, ...pathShapes],
-        zoom: 1, // Default zoom
-        rooms: floor.rooms,
-        paths: floor.rooms.flatMap((room) => room.fromPaths),
-      };
+      return floor;
     }),
 
   // Save floor, rooms, and paths at once
