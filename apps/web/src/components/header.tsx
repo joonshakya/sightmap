@@ -5,13 +5,21 @@ import UserMenu from "./user-menu";
 export default function Header() {
   const links = [
     { to: "/", label: "Home" },
-    { to: "/todos", label: "Todos" },
+    // { to: "/todos", label: "Todos" },
   ] as const;
 
   return (
     <div>
-      <div className="flex flex-row items-center justify-between px-2 py-1">
-        <nav className="flex gap-4 text-lg">
+      <div className="flex flex-row items-center justify-between px-2 py-2">
+        <nav className="flex items-center gap-4 text-lg">
+          <div className="flex items-center gap-1">
+            <img
+              src="/public/sightmap_logo.png"
+              alt="Sight Map logo"
+              className="h-8 w-8 object-contain"
+            />
+            <h1 className="font-semibold text-md">Sight Map</h1>
+          </div>
           {links.map(({ to, label }) => {
             return (
               <Link key={to} to={to}>
