@@ -8,6 +8,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import DrawingCanvas from "@/components/drawing-canvas";
+import Sidebar from "@/components/sidebar";
 import { useState } from "react";
 
 export const Route = createFileRoute("/floors/$floorId")({
@@ -22,6 +23,9 @@ function RouteComponent() {
     width: 0,
     height: 0,
   });
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(
+    null
+  );
 
   const floorData = useQuery(
     trpc.floor.getFloorData.queryOptions({ floorId })
@@ -113,7 +117,12 @@ function RouteComponent() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full">
+      <Sidebar
+        rooms={floorData.data?.rooms || []}
+        selectedRoomId={selectedRoomId}
+        onRoomSelect={setSelectedRoomId}
+      />
       <div
         className="flex-1"
         ref={(el) => {

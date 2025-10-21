@@ -1,0 +1,255 @@
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, MapPin, Route } from "lucide-react";
+import type { RouterOutputs } from "@/utils/trpc";
+
+type Room = RouterOutputs["floor"]["getFloorData"]["rooms"][number];
+type Path = Room["fromPaths"][number];
+
+interface SidebarProps {
+  rooms: Room[];
+  selectedRoomId: string | null;
+  onRoomSelect: (roomId: string | null) => void;
+  className?: string;
+}
+
+type Screen = "rooms" | "details";
+
+const getConnectedPaths = (room: Room) => {
+  const fromPaths = room.fromPaths || [];
+  const toPaths = room.toPaths || [];
+  return [...fromPaths, ...toPaths];
+};
+
+export default function Sidebar({
+  rooms,
+  selectedRoomId,
+  onRoomSelect,
+  className = "",
+}: SidebarProps) {
+  const [currentScreen, setCurrentScreen] = useState<Screen>("rooms");
+
+  const selectedRoom = rooms.find(
+    (room) => room.id === selectedRoomId
+  );
+
+  const handleRoomClick = (room: Room) => {
+    onRoomSelect(room.id);
+    setCurrentScreen("details");
+  };
+
+  const handleBackToRooms = () => {
+    setCurrentScreen("rooms");
+    onRoomSelect(null);
+  };
+
+  return (
+    <div
+      className={`w-80 bg-gray-50 border-r border-gray-200 h-full relative ${className}`}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          {currentScreen === "details" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBackToRooms}
+              className="p-1"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          )}
+          <h2 className="text-lg font-semibold">
+            {currentScreen === "rooms"
+              ? "Rooms"
+              : selectedRoom?.name || "Room Details"}
+          </h2>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="absolute top-16 left-0 right-0 bottom-0 overflow-y-auto p-4">
+        {currentScreen === "rooms" ? (
+          <RoomListScreen
+            rooms={rooms}
+            selectedRoomId={selectedRoomId}
+            onRoomClick={handleRoomClick}
+          />
+        ) : selectedRoom ? (
+          <RoomDetailsScreen room={selectedRoom} />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+interface RoomListScreenProps {
+  rooms: Room[];
+  selectedRoomId: string | null;
+  onRoomClick: (room: Room) => void;
+}
+
+function RoomListScreen({
+  rooms,
+  selectedRoomId,
+  onRoomClick,
+}: RoomListScreenProps) {
+  return (
+    <div className="space-y-2">
+      {rooms.length === 0 ? (
+        <div className="text-center text-gray-500 py-8">
+          <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p>No rooms created yet</p>
+          <p className="text-sm">
+            Draw rooms on the canvas to get started
+          </p>
+        </div>
+      ) : (
+        rooms.map((room) => (
+          <Card
+            key={room.id}
+            className={`cursor-pointer transition-colors ${
+              selectedRoomId === room.id
+                ? "ring-2 ring-blue-500 bg-blue-50"
+                : "hover:bg-gray-100"
+            }`}
+            onClick={() => onRoomClick(room)}
+          >
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium">{room.name}</h3>
+                  <p className="text-sm text-gray-600">
+                    {room.number}
+                  </p>
+                </div>
+                <Badge variant="secondary">
+                  {getConnectedPaths(room).length} paths
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        ))
+      )}
+    </div>
+  );
+}
+
+interface RoomDetailsScreenProps {
+  room: Room;
+}
+
+function RoomDetailsScreen({ room }: RoomDetailsScreenProps) {
+  const connectedPaths = getConnectedPaths(room);
+
+  return (
+    <div className="space-y-4">
+      {/* Room Info */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">
+            Room Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="space-y-2 text-sm">
+            <div>
+              <span className="font-medium">Number:</span>{" "}
+              {room.number}
+            </div>
+            <div>
+              <span className="font-medium">Position:</span> ({room.x}
+              , {room.y})
+            </div>
+            <div>
+              <span className="font-medium">Size:</span> {room.width}{" "}
+              × {room.height}
+            </div>
+            {room.doorX !== null && room.doorY !== null && (
+              <div>
+                <span className="font-medium">Door:</span> (
+                {room.doorX}, {room.doorY})
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Connected Paths */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Route className="h-4 w-4" />
+            Connected Paths ({connectedPaths.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {connectedPaths.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              No paths connected to this room
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {connectedPaths.map((path) => {
+                const isFromRoom = path.fromRoomId === room.id;
+                const connectedRoom = isFromRoom
+                  ? path.toRoom
+                  : path.fromRoom;
+                const direction = isFromRoom ? "→" : "←";
+
+                return (
+                  <div
+                    key={path.id}
+                    className="border border-gray-200 rounded-lg p-3 bg-white"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={
+                            isFromRoom ? "default" : "secondary"
+                          }
+                        >
+                          {direction}
+                        </Badge>
+                        <span className="font-medium text-sm">
+                          {connectedRoom.name} ({connectedRoom.number}
+                          )
+                        </span>
+                      </div>
+                      <Badge variant="outline">
+                        {path.anchors?.length || 0} points
+                      </Badge>
+                    </div>
+
+                    {path.instructionSet && (
+                      <div className="space-y-1">
+                        <div className="text-xs text-gray-600">
+                          <strong>Instructions:</strong>
+                        </div>
+                        <div className="text-xs">
+                          {path.instructionSet
+                            .descriptiveInstructions?.[0] ||
+                            path.instructionSet
+                              .conciseInstructions?.[0] ||
+                            "No instructions available"}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
