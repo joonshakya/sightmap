@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, MapPin, Route } from "lucide-react";
 import type { RouterOutputs } from "@/utils/trpc";
 
@@ -40,6 +41,7 @@ export default function Sidebar({
   className = "",
 }: SidebarProps) {
   const [currentScreen, setCurrentScreen] = useState<Screen>("rooms");
+  const queryClient = useQueryClient();
 
   const selectedRoom = rooms.find(
     (room) => room.id === selectedRoomId
@@ -64,9 +66,33 @@ export default function Sidebar({
     onRoomSelect(null);
   };
 
+  const handleNameChange = (newName: string) => {
+    if (!selectedRoom) return;
+    // Update the cache directly
+    queryClient.setQueryData(
+      trpc.floor.getFloorData.queryKey({
+        floorId: selectedRoom.floorId,
+      }),
+      (oldData: any) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          rooms: oldData.rooms.map((r: Room) =>
+            r.id === selectedRoom.id ? { ...r, name: newName } : r
+          ),
+        };
+      }
+    );
+  };
+
+  const handleNameBlur = () => {
+    if (!selectedRoom) return;
+    onRoomNameUpdate(selectedRoom.id, selectedRoom.name.trim());
+  };
+
   return (
     <div
-      className={`w-80 bg-gray-50 border-r border-gray-200 h-full relative ${className}`}
+      className={`w-80 bg-gray-50 border-r border-gray-200 h-full absolute overflow-y-auto ${className}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -81,16 +107,24 @@ export default function Sidebar({
               <ArrowLeft className="h-4 w-4" />
             </Button>
           )}
-          <h2 className="text-lg font-semibold">
-            {currentScreen === "rooms"
-              ? "Rooms"
-              : selectedRoom?.name || "Room Details"}
-          </h2>
+          {currentScreen === "rooms" ? (
+            <h2 className="text-lg font-semibold">Rooms</h2>
+          ) : selectedRoom ? (
+            <Textarea
+              value={selectedRoom.name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              onBlur={handleNameBlur}
+              className="text-xl font-semibold border-none bg-transparent p-2 h-auto focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 resize-none min-h-[2rem] max-h-[6rem] overflow-hidden"
+              rows={1}
+            />
+          ) : (
+            <h2 className="text-lg font-semibold">Room Details</h2>
+          )}
         </div>
       </div>
 
       {/* Content */}
-      <div className="absolute top-16 left-0 right-0 bottom-0 overflow-y-auto p-4">
+      <div className="p-4">
         {currentScreen === "rooms" ? (
           <RoomListScreen
             rooms={rooms}
@@ -98,10 +132,7 @@ export default function Sidebar({
             onRoomClick={handleRoomClick}
           />
         ) : selectedRoom ? (
-          <RoomDetailsScreen
-            room={selectedRoom}
-            onRoomNameUpdate={onRoomNameUpdate}
-          />
+          <RoomDetailsScreen room={selectedRoom} />
         ) : null}
       </div>
     </div>
@@ -158,31 +189,10 @@ function RoomListScreen({
 
 interface RoomDetailsScreenProps {
   room: Room;
-  onRoomNameUpdate: (roomId: string, name: string) => void;
 }
 
-function RoomDetailsScreen({
-  room,
-  onRoomNameUpdate,
-}: RoomDetailsScreenProps) {
-  const queryClient = useQueryClient();
+function RoomDetailsScreen({ room }: RoomDetailsScreenProps) {
   const connectedPaths = getConnectedPaths(room);
-
-  const handleNameChange = (newName: string) => {
-    // Update the cache directly
-    queryClient.setQueryData(
-      trpc.floor.getFloorData.queryKey({ floorId: room.floorId }),
-      (oldData: any) => {
-        if (!oldData) return oldData;
-        return {
-          ...oldData,
-          rooms: oldData.rooms.map((r: Room) =>
-            r.id === room.id ? { ...r, name: newName } : r
-          ),
-        };
-      }
-    );
-  };
 
   return (
     <div className="space-y-4">
@@ -195,17 +205,6 @@ function RoomDetailsScreen({
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-3 text-sm">
-            <div className="space-y-1">
-              <label className="font-medium">Name:</label>
-              <Input
-                value={room.name}
-                onChange={(e) => handleNameChange(e.target.value)}
-                onBlur={() => {
-                  onRoomNameUpdate(room.id, room.name.trim());
-                }}
-                className="text-sm"
-              />
-            </div>
             <div>
               <span className="font-medium">Number:</span>{" "}
               {room.number}

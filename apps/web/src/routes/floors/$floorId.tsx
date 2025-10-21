@@ -127,7 +127,9 @@ function RouteComponent() {
   }
 
   return (
-    <div className="flex h-full">
+    <div className="flex relative">
+      {/* Dummy div to reserve space for the absolutely positioned sidebar */}
+      <div className="w-80 flex-shrink-0"></div>
       <Sidebar
         rooms={floorData.data?.rooms || []}
         selectedRoomId={selectedRoomId}
