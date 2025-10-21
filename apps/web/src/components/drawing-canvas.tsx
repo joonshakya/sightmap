@@ -746,7 +746,8 @@ export default function DrawingCanvas({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
         (e.key === "Delete" || e.key === "Backspace") &&
-        selectedRoomId
+        selectedRoomId &&
+        (e.metaKey || e.ctrlKey)
       ) {
         deleteSelectedRoom();
       }
@@ -885,15 +886,22 @@ export default function DrawingCanvas({
 
   return (
     <div className="w-full h-full relative">
-      {/* Save Button */}
+      {/* Save/Discard Buttons */}
       {pendingRooms.length > 0 && (
-        <div className="absolute top-4 right-4 z-10">
+        <div className="absolute top-4 right-4 z-10 flex gap-2">
+          <Button
+            onClick={() => setPendingRooms([])}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            Discard New Rooms
+          </Button>
           <Button
             onClick={handleSave}
             className="flex items-center gap-2"
           >
             <Save className="h-4 w-4" />
-            Save Map ({pendingRooms.length} rooms)
+            Save New Rooms
           </Button>
         </div>
       )}

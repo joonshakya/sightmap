@@ -103,6 +103,10 @@ function RouteComponent() {
 
   const handleRoomDelete = (roomId: string) => {
     deleteRoom.mutate({ id: roomId });
+    // Deselect the room if it was selected
+    if (selectedRoomId === roomId) {
+      setSelectedRoomId(null);
+    }
   };
 
   if (floorData.isLoading) {
@@ -137,6 +141,7 @@ function RouteComponent() {
         onRoomNameUpdate={(roomId, name) => {
           updateRoomName.mutate({ roomId, name });
         }}
+        onRoomDelete={handleRoomDelete}
       />
       <div
         className="flex-1"

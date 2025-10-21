@@ -228,6 +228,7 @@ export const floorRouter = router({
         where: { id: input.floorId },
         include: {
           rooms: {
+            orderBy: { name: "asc" },
             include: {
               fromPaths: {
                 include: {

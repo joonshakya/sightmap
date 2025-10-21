@@ -11,7 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, MapPin, Route } from "lucide-react";
+import { ArrowLeft, MapPin, Route, Trash2 } from "lucide-react";
 import type { RouterOutputs } from "@/utils/trpc";
 
 type Room = RouterOutputs["floor"]["getFloorData"]["rooms"][number];
@@ -22,6 +22,7 @@ interface SidebarProps {
   selectedRoomId: string | null;
   onRoomSelect: (roomId: string | null) => void;
   onRoomNameUpdate: (roomId: string, name: string) => void;
+  onRoomDelete?: (roomId: string) => void;
   className?: string;
 }
 
@@ -38,6 +39,7 @@ export default function Sidebar({
   selectedRoomId,
   onRoomSelect,
   onRoomNameUpdate,
+  onRoomDelete,
   className = "",
 }: SidebarProps) {
   const [currentScreen, setCurrentScreen] = useState<Screen>("rooms");
@@ -132,7 +134,10 @@ export default function Sidebar({
             onRoomClick={handleRoomClick}
           />
         ) : selectedRoom ? (
-          <RoomDetailsScreen room={selectedRoom} />
+          <RoomDetailsScreen
+            room={selectedRoom}
+            onRoomDelete={onRoomDelete}
+          />
         ) : null}
       </div>
     </div>
@@ -189,9 +194,13 @@ function RoomListScreen({
 
 interface RoomDetailsScreenProps {
   room: Room;
+  onRoomDelete?: (roomId: string) => void;
 }
 
-function RoomDetailsScreen({ room }: RoomDetailsScreenProps) {
+function RoomDetailsScreen({
+  room,
+  onRoomDelete,
+}: RoomDetailsScreenProps) {
   const connectedPaths = getConnectedPaths(room);
 
   return (
@@ -294,6 +303,22 @@ function RoomDetailsScreen({ room }: RoomDetailsScreenProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Room */}
+      {onRoomDelete && (
+        <Card className="border-red-200">
+          <CardContent className="pt-6">
+            <Button
+              variant="destructive"
+              onClick={() => onRoomDelete(room.id)}
+              className="w-full flex items-center gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Room
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
