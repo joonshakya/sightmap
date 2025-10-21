@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { trpc } from "@/utils/trpc";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const [currentScreen, setCurrentScreen] = useState<Screen>("rooms");
   const queryClient = useQueryClient();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const selectedRoom = rooms.find(
     (room) => room.id === selectedRoomId
@@ -57,6 +58,14 @@ export default function Sidebar({
       setCurrentScreen("rooms");
     }
   }, [selectedRoomId]);
+
+  // Focus and select all text in the textarea when a room is selected
+  useEffect(() => {
+    if (selectedRoom && textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.select();
+    }
+  }, [selectedRoom]);
 
   const handleRoomClick = (room: Room) => {
     onRoomSelect(room.id);
@@ -113,6 +122,7 @@ export default function Sidebar({
             <h2 className="text-lg font-semibold">Rooms</h2>
           ) : selectedRoom ? (
             <Textarea
+              ref={textareaRef}
               value={selectedRoom.name}
               onChange={(e) => handleNameChange(e.target.value)}
               onBlur={handleNameBlur}
