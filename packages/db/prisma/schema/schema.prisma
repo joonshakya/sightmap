@@ -29,17 +29,17 @@ model Floor {
 
   rooms Room[]
 
-  building   Building @relation(fields: [buildingId], references: [id])
+  building   Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   buildingId String
 
-  createdBy   User   @relation("UserFloors", fields: [createdById], references: [id])
+  createdBy   User   @relation("UserFloors", fields: [createdById], references: [id], onDelete: Cascade)
   createdById String
 }
 
 model Room {
   id String @id @default(cuid())
 
-  floor   Floor  @relation(fields: [floorId], references: [id])
+  floor   Floor  @relation(fields: [floorId], references: [id], onDelete: Cascade)
   floorId String
 
   name      String
@@ -62,9 +62,9 @@ model Room {
 model Path {
   id String @id @default(cuid())
 
-  fromRoom   Room   @relation("RoomFrom", fields: [fromRoomId], references: [id])
+  fromRoom   Room   @relation("RoomFrom", fields: [fromRoomId], references: [id], onDelete: Cascade)
   fromRoomId String
-  toRoom     Room   @relation("RoomTo", fields: [toRoomId], references: [id])
+  toRoom     Room   @relation("RoomTo", fields: [toRoomId], references: [id], onDelete: Cascade)
   toRoomId   String
 
   instructionSet InstructionSet?
@@ -77,7 +77,7 @@ model Path {
 
 model InstructionSet {
   id     String @id @default(cuid())
-  path   Path   @relation(fields: [pathId], references: [id])
+  path   Path   @relation(fields: [pathId], references: [id], onDelete: Cascade)
   pathId String @unique
 
   descriptiveInstructions String[]
@@ -107,6 +107,6 @@ model PathAnchor {
 
   xCoords Float
   yCoords Float
-  path    Path   @relation(fields: [pathId], references: [id])
+  path    Path   @relation(fields: [pathId], references: [id], onDelete: Cascade)
   pathId  String
 }

@@ -9,7 +9,8 @@ import {
 } from "@tanstack/react-query";
 import DrawingCanvas from "@/components/drawing-canvas";
 import Sidebar from "@/components/sidebar";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import type { EditMode } from "@sightmap/common";
 
 export const Route = createFileRoute("/floors/$floorId")({
   component: RouteComponent,
@@ -18,6 +19,9 @@ export const Route = createFileRoute("/floors/$floorId")({
 function RouteComponent() {
   const { floorId } = Route.useParams();
   const queryClient = useQueryClient();
+  const drawingCanvasRef = useRef<{
+    startPathCreation: (sourceRoomId: string) => void;
+  } | null>(null);
 
   const [stageDimensions, setStageDimensions] = useState({
     width: 0,
@@ -26,6 +30,7 @@ function RouteComponent() {
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(
     null
   );
+  const [mode, setMode] = useState<EditMode>("room");
 
   const floorData = useQuery(
     trpc.floor.getFloorData.queryOptions({ floorId })
@@ -63,6 +68,26 @@ function RouteComponent() {
 
   const updateRoomName = useMutation(
     trpc.floor.updateRoomName.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: trpc.floor.getFloorData.queryKey({ floorId }),
+        });
+      },
+    })
+  );
+
+  const createPath = useMutation(
+    trpc.floor.createPath.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: trpc.floor.getFloorData.queryKey({ floorId }),
+        });
+      },
+    })
+  );
+
+  const deletePath = useMutation(
+    trpc.floor.deletePath.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries({
           queryKey: trpc.floor.getFloorData.queryKey({ floorId }),
@@ -109,6 +134,29 @@ function RouteComponent() {
     }
   };
 
+  const handlePathCreateStart = (sourceRoomId: string) => {
+    // Call the startPathCreation method on the DrawingCanvas ref
+    if (drawingCanvasRef.current) {
+      drawingCanvasRef.current.startPathCreation(sourceRoomId);
+    }
+  };
+
+  const handlePathCreate = (
+    fromRoomId: string,
+    toRoomId: string,
+    anchors: { x: number; y: number }[]
+  ) => {
+    createPath.mutate({
+      fromRoomId,
+      toRoomId,
+      anchors,
+    });
+  };
+
+  const handlePathDelete = (pathId: string) => {
+    deletePath.mutate({ pathId });
+  };
+
   if (floorData.isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -142,6 +190,10 @@ function RouteComponent() {
           updateRoomName.mutate({ roomId, name });
         }}
         onRoomDelete={handleRoomDelete}
+        onPathDelete={handlePathDelete}
+        mode={mode}
+        onModeChange={setMode}
+        onPathCreateStart={handlePathCreateStart}
       />
       <div
         className="flex-1"
@@ -159,6 +211,7 @@ function RouteComponent() {
       >
         {stageDimensions.width ? (
           <DrawingCanvas
+            ref={drawingCanvasRef}
             stageDimensions={stageDimensions}
             rooms={floorData.data?.rooms || []}
             selectedRoomId={selectedRoomId}
@@ -167,6 +220,8 @@ function RouteComponent() {
             onRoomCreate={handleRoomCreate}
             onRoomDelete={handleRoomDelete}
             gridSize={20}
+            mode={mode}
+            onPathCreate={handlePathCreate}
           />
         ) : null}
       </div>

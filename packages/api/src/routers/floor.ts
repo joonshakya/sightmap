@@ -220,6 +220,66 @@ export const floorRouter = router({
       }
     }),
 
+  // Create a path between two rooms
+  createPath: protectedProcedure
+    .input(
+      z.object({
+        fromRoomId: z.cuid(),
+        toRoomId: z.cuid(),
+        anchors: z.array(
+          z.object({
+            x: z.number(),
+            y: z.number(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await prisma.$transaction(async (tx) => {
+        // Create the path
+        const path = await tx.path.create({
+          data: {
+            fromRoomId: input.fromRoomId,
+            toRoomId: input.toRoomId,
+          },
+        });
+
+        // Create path anchors
+        let index = 0;
+        for (const anchor of input.anchors) {
+          await tx.pathAnchor.create({
+            data: {
+              pathId: path.id,
+              index: index++,
+              xCoords: anchor.x,
+              yCoords: anchor.y,
+            },
+          });
+        }
+
+        return path;
+      });
+    }),
+
+  // Delete a path
+  deletePath: protectedProcedure
+    .input(z.object({ pathId: z.cuid() }))
+    .mutation(async ({ input }) => {
+      try {
+        return await prisma.path.delete({
+          where: { id: input.pathId },
+        });
+      } catch (error: any) {
+        if (error.code === "P2025") {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Path not found",
+          });
+        }
+        throw error;
+      }
+    }),
+
   // Get all paths and rooms in a floor with data for DrawingCanvas
   getFloorData: publicProcedure
     .input(z.object({ floorId: z.cuid() }))

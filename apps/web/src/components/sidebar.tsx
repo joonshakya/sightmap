@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, MapPin, Route, Trash2 } from "lucide-react";
 import type { RouterOutputs } from "@/utils/trpc";
+import type { EditMode } from "@sightmap/common";
 
 type Room = RouterOutputs["floor"]["getFloorData"]["rooms"][number];
 type Path = Room["fromPaths"][number];
@@ -24,6 +25,10 @@ interface SidebarProps {
   onRoomSelect: (roomId: string | null) => void;
   onRoomNameUpdate: (roomId: string, name: string) => void;
   onRoomDelete?: (roomId: string) => void;
+  onPathDelete?: (pathId: string) => void;
+  mode: EditMode;
+  onModeChange: (mode: EditMode) => void;
+  onPathCreateStart?: (sourceRoomId: string) => void;
   className?: string;
 }
 
@@ -41,6 +46,10 @@ export default function Sidebar({
   onRoomSelect,
   onRoomNameUpdate,
   onRoomDelete,
+  onPathDelete,
+  mode,
+  onModeChange,
+  onPathCreateStart,
   className = "",
 }: SidebarProps) {
   const [currentScreen, setCurrentScreen] = useState<Screen>("rooms");
@@ -165,11 +174,16 @@ export default function Sidebar({
             rooms={rooms}
             selectedRoomId={selectedRoomId}
             onRoomClick={handleRoomClick}
+            mode={mode}
+            onModeChange={onModeChange}
           />
         ) : selectedRoom ? (
           <RoomDetailsScreen
             room={selectedRoom}
             onRoomDelete={onRoomDelete}
+            onPathDelete={onPathDelete}
+            mode={mode}
+            onPathCreateStart={onPathCreateStart}
           />
         ) : null}
       </div>
@@ -187,40 +201,75 @@ function RoomListScreen({
   rooms,
   selectedRoomId,
   onRoomClick,
-}: RoomListScreenProps) {
+  mode,
+  onModeChange,
+}: RoomListScreenProps & {
+  mode: EditMode;
+  onModeChange: (mode: EditMode) => void;
+}) {
   return (
-    <div className="space-y-2">
-      {rooms.length === 0 ? (
-        <div className="text-center text-gray-500 py-8">
-          <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>No rooms created yet</p>
-          <p className="text-sm">
-            Draw rooms on the canvas to get started
-          </p>
-        </div>
-      ) : (
-        rooms.map((room) => (
-          <Card
-            key={room.id}
-            className="cursor-pointer transition-colors hover:bg-gray-100"
-            onClick={() => onRoomClick(room)}
-          >
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium">{room.name}</h3>
-                  <p className="text-sm text-gray-600">
-                    {room.number}
-                  </p>
+    <div className="space-y-4">
+      {/* Mode Toggle */}
+      <Card>
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Edit Mode</span>
+            <div className="flex gap-1">
+              <Button
+                variant={mode === "room" ? "default" : "outline"}
+                size="sm"
+                onClick={() => onModeChange("room")}
+                className="text-xs"
+              >
+                Room
+              </Button>
+              <Button
+                variant={mode === "path" ? "default" : "outline"}
+                size="sm"
+                onClick={() => onModeChange("path")}
+                className="text-xs"
+              >
+                Path
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Rooms List */}
+      <div className="space-y-2">
+        {rooms.length === 0 ? (
+          <div className="text-center text-gray-500 py-8">
+            <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>No rooms created yet</p>
+            <p className="text-sm">
+              Draw rooms on the canvas to get started
+            </p>
+          </div>
+        ) : (
+          rooms.map((room) => (
+            <Card
+              key={room.id}
+              className="cursor-pointer transition-colors hover:bg-gray-100"
+              onClick={() => onRoomClick(room)}
+            >
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium">{room.name}</h3>
+                    <p className="text-sm text-gray-600">
+                      {room.number}
+                    </p>
+                  </div>
+                  <Badge variant="secondary">
+                    {getConnectedPaths(room).length} paths
+                  </Badge>
                 </div>
-                <Badge variant="secondary">
-                  {getConnectedPaths(room).length} paths
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        ))
-      )}
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -228,11 +277,17 @@ function RoomListScreen({
 interface RoomDetailsScreenProps {
   room: Room;
   onRoomDelete?: (roomId: string) => void;
+  onPathDelete?: (pathId: string) => void;
+  mode?: EditMode;
+  onPathCreateStart?: (sourceRoomId: string) => void;
 }
 
 function RoomDetailsScreen({
   room,
   onRoomDelete,
+  onPathDelete,
+  mode,
+  onPathCreateStart,
 }: RoomDetailsScreenProps) {
   const connectedPaths = getConnectedPaths(room);
 
@@ -272,10 +327,23 @@ function RoomDetailsScreen({
       {/* Connected Paths */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Route className="h-4 w-4" />
-            Connected Paths ({connectedPaths.length})
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Route className="h-4 w-4" />
+              Connected Paths ({connectedPaths.length})
+            </CardTitle>
+            {mode === "path" && onPathCreateStart && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPathCreateStart(room.id)}
+                className="flex items-center gap-2"
+              >
+                <Route className="h-3 w-3" />
+                Create Path
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="pt-0">
           {connectedPaths.length === 0 ? (
@@ -310,9 +378,21 @@ function RoomDetailsScreen({
                           )
                         </span>
                       </div>
-                      <Badge variant="outline">
-                        {path.anchors?.length || 0} points
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">
+                          {path.anchors?.length || 0} points
+                        </Badge>
+                        {onPathDelete && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onPathDelete(path.id)}
+                            className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     {path.instructionSet && (
