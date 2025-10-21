@@ -743,12 +743,14 @@ const PathVisualization = ({
   paths,
   mode,
   sourceRoomId,
+  selectedRoomId,
   opacity = 1,
   gridSize,
 }: {
   paths: Room["fromPaths"];
   mode: EditMode;
   sourceRoomId: string | null;
+  selectedRoomId: string | null;
   opacity?: number;
   gridSize: number;
 }) => {
@@ -756,45 +758,60 @@ const PathVisualization = ({
 
   return (
     <Group opacity={opacity}>
-      {paths.map((path) => (
-        <Group key={path.id}>
-          {/* Draw lines between anchors */}
-          {path.anchors
-            .sort((a, b) => a.index - b.index)
-            .reduce((lines, anchor, index, arr) => {
-              if (index < arr.length - 1) {
-                const nextAnchor = arr[index + 1];
-                lines.push(
-                  <Line
-                    key={`${path.id}-${index}`}
-                    points={[
-                      anchor.xCoords,
-                      anchor.yCoords,
-                      nextAnchor.xCoords,
-                      nextAnchor.yCoords,
-                    ]}
-                    stroke="#00ff00"
-                    strokeWidth={gridSize}
-                    opacity={0.8}
-                  />
-                );
-              }
-              return lines;
-            }, [] as React.JSX.Element[])}
-          {/* Draw anchor points */}
-          {path.anchors.map((anchor) => (
-            <Rect
-              key={`anchor-${anchor.id}`}
-              x={anchor.xCoords - gridSize / 2}
-              y={anchor.yCoords - gridSize / 2}
-              width={gridSize}
-              height={gridSize}
-              fill="#00ff00"
-              opacity={0.6}
-            />
-          ))}
-        </Group>
-      ))}
+      {paths.map((path) => {
+        // Calculate path-specific opacity based on room selection
+        let pathOpacity = 0.2; // Low opacity by default
+
+        if (selectedRoomId) {
+          // If a room is selected, check if this path connects to it
+          if (
+            path.fromRoomId === selectedRoomId ||
+            path.toRoomId === selectedRoomId
+          ) {
+            pathOpacity = 1.0; // High opacity for connected paths
+          }
+        }
+
+        return (
+          <Group key={path.id} opacity={pathOpacity}>
+            {/* Draw lines between anchors */}
+            {path.anchors
+              .sort((a, b) => a.index - b.index)
+              .reduce((lines, anchor, index, arr) => {
+                if (index < arr.length - 1) {
+                  const nextAnchor = arr[index + 1];
+                  lines.push(
+                    <Line
+                      key={`${path.id}-${index}`}
+                      points={[
+                        anchor.xCoords,
+                        anchor.yCoords,
+                        nextAnchor.xCoords,
+                        nextAnchor.yCoords,
+                      ]}
+                      stroke="#00ff00"
+                      strokeWidth={gridSize}
+                      opacity={0.8}
+                    />
+                  );
+                }
+                return lines;
+              }, [] as React.JSX.Element[])}
+            {/* Draw anchor points */}
+            {path.anchors.map((anchor) => (
+              <Rect
+                key={`anchor-${anchor.id}`}
+                x={anchor.xCoords - gridSize / 2}
+                y={anchor.yCoords - gridSize / 2}
+                width={gridSize}
+                height={gridSize}
+                fill="#00ff00"
+                opacity={0.6}
+              />
+            ))}
+          </Group>
+        );
+      })}
     </Group>
   );
 };
@@ -1389,6 +1406,7 @@ const DrawingCanvas = forwardRef<
                       paths={room.fromPaths}
                       mode={mode}
                       sourceRoomId={pathState.sourceRoomId}
+                      selectedRoomId={selectedRoomId}
                       gridSize={gridSize}
                       opacity={
                         (pathState.stage === "drawing_path" ||
