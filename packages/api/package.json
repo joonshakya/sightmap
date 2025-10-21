@@ -24,6 +24,8 @@
     "@trpc/server": "catalog:",
     "@trpc/client": "catalog:",
     "hono": "catalog:",
+    "ai": "catalog:",
+    "@ai-sdk/google": "catalog:",
     "@prisma/client": "catalog:",
     "dotenv": "catalog:",
     "zod": "catalog:",

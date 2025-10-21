@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TodosRouteImport } from './routes/todos'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as AiRouteImport } from './routes/ai'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as FloorsFloorIdRouteImport } from './routes/floors/$floorId'
 
@@ -22,6 +23,11 @@ const TodosRoute = TodosRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiRoute = AiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -37,12 +43,14 @@ const FloorsFloorIdRoute = FloorsFloorIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ai': typeof AiRoute
   '/login': typeof LoginRoute
   '/todos': typeof TodosRoute
   '/floors/$floorId': typeof FloorsFloorIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ai': typeof AiRoute
   '/login': typeof LoginRoute
   '/todos': typeof TodosRoute
   '/floors/$floorId': typeof FloorsFloorIdRoute
@@ -50,20 +58,22 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ai': typeof AiRoute
   '/login': typeof LoginRoute
   '/todos': typeof TodosRoute
   '/floors/$floorId': typeof FloorsFloorIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/todos' | '/floors/$floorId'
+  fullPaths: '/' | '/ai' | '/login' | '/todos' | '/floors/$floorId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/todos' | '/floors/$floorId'
-  id: '__root__' | '/' | '/login' | '/todos' | '/floors/$floorId'
+  to: '/' | '/ai' | '/login' | '/todos' | '/floors/$floorId'
+  id: '__root__' | '/' | '/ai' | '/login' | '/todos' | '/floors/$floorId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AiRoute: typeof AiRoute
   LoginRoute: typeof LoginRoute
   TodosRoute: typeof TodosRoute
   FloorsFloorIdRoute: typeof FloorsFloorIdRoute
@@ -85,6 +95,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ai': {
+      id: '/ai'
+      path: '/ai'
+      fullPath: '/ai'
+      preLoaderRoute: typeof AiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -104,6 +121,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AiRoute: AiRoute,
   LoginRoute: LoginRoute,
   TodosRoute: TodosRoute,
   FloorsFloorIdRoute: FloorsFloorIdRoute,
