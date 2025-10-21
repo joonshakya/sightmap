@@ -8,6 +8,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import DrawingCanvas from "@/components/drawing-canvas";
+import { useState } from "react";
 
 export const Route = createFileRoute("/floors/$floorId")({
   component: RouteComponent,
@@ -16,6 +17,11 @@ export const Route = createFileRoute("/floors/$floorId")({
 function RouteComponent() {
   const { floorId } = Route.useParams();
   const queryClient = useQueryClient();
+
+  const [stageDimensions, setStageDimensions] = useState({
+    width: 0,
+    height: 0,
+  });
 
   const floorData = useQuery(
     trpc.floor.getFloorData.queryOptions({ floorId })
@@ -108,20 +114,30 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-6 pb-4 flex-shrink-0">
-        <h1 className="text-2xl font-bold">
-          Floor {floorData.data?.level} -{" "}
-          {floorData.data?.building.name}
-        </h1>
-      </div>
-      <div className="flex-1 px-6 pb-6">
-        <DrawingCanvas
-          rooms={floorData.data?.rooms || []}
-          onRoomUpdate={handleRoomUpdate}
-          onRoomCreate={handleRoomCreate}
-          onRoomDelete={handleRoomDelete}
-          gridSize={20}
-        />
+      <div
+        className="flex-1"
+        ref={(el) => {
+          if (
+            el &&
+            (!stageDimensions.width || !stageDimensions.height)
+          ) {
+            setStageDimensions({
+              width: el.clientWidth,
+              height: el.clientHeight,
+            });
+          }
+        }}
+      >
+        {stageDimensions.width ? (
+          <DrawingCanvas
+            stageDimensions={stageDimensions}
+            rooms={floorData.data?.rooms || []}
+            onRoomUpdate={handleRoomUpdate}
+            onRoomCreate={handleRoomCreate}
+            onRoomDelete={handleRoomDelete}
+            gridSize={20}
+          />
+        ) : null}
       </div>
     </div>
   );

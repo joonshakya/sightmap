@@ -59,12 +59,6 @@ const isCornerDoor = (
   return corners.some(([x, y]) => doorX === x && doorY === y);
 };
 
-// Helper to get stage dimensions
-const getStageDimensions = () => ({
-  width: window.innerWidth - 48,
-  height: window.innerHeight - 200,
-});
-
 // Helper to check if point is on room border
 const isOnRoomBorder = (
   pos: { x: number; y: number },
@@ -235,14 +229,14 @@ const DrawingPreview = ({
 };
 
 export default function DrawingCanvas({
+  stageDimensions,
   rooms,
   onRoomUpdate,
   onRoomCreate,
   onRoomDelete,
   gridSize = 20,
-  canvasWidth = 800,
-  canvasHeight = 600,
 }: {
+  stageDimensions: { width: number; height: number };
   rooms: Room[];
   onRoomUpdate: (
     input: RouterInputs["floor"]["updateRoomCoordinates"]
@@ -257,8 +251,6 @@ export default function DrawingCanvas({
   ) => void;
   onRoomDelete?: (roomId: string) => void;
   gridSize?: number;
-  canvasWidth?: number;
-  canvasHeight?: number;
 }) {
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(
     null
@@ -300,7 +292,7 @@ export default function DrawingCanvas({
   const generateGrid = () => {
     const lines = [];
     const { width: stageWidth, height: stageHeight } =
-      getStageDimensions();
+      stageDimensions;
 
     // Vertical lines
     for (let x = 0; x <= stageWidth; x += gridSize) {
@@ -501,10 +493,11 @@ export default function DrawingCanvas({
         </div>
       )}
 
-      <div className="w-full h-full border border-gray-300">
+      <div className="w-full h-full">
         <Stage
           ref={stageRef}
-          {...getStageDimensions()}
+          width={stageDimensions.width}
+          height={stageDimensions.height}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
