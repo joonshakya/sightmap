@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { trpc } from "@/utils/trpc";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -104,7 +105,18 @@ export default function Sidebar({
   const handleNameBlur = () => {
     if (!selectedRoom) return;
     hasUserBlurredRef.current = true;
-    onRoomNameUpdate(selectedRoom.id, selectedRoom.name.trim());
+    const trimmedName = selectedRoom.name.trim();
+    onRoomNameUpdate(selectedRoom.id, trimmedName);
+    toast.success(`Room name updated to "${trimmedName}"`);
+  };
+
+  const handleNameKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>
+  ) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleNameBlur();
+    }
   };
 
   return (
@@ -131,7 +143,7 @@ export default function Sidebar({
               ref={textareaRef}
               value={selectedRoom.name}
               onChange={(e) => handleNameChange(e.target.value)}
-              onBlur={handleNameBlur}
+              onKeyDown={handleNameKeyDown}
               className="flex-1 text-2xl font-semibold border-none bg-transparent p-2 h-auto focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 resize-none min-h-[2rem] max-h-[6rem] overflow-hidden"
               rows={1}
             />
