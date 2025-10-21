@@ -96,13 +96,13 @@ export default function Sidebar({
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1">
           {currentScreen === "details" && (
             <Button
               variant="ghost"
               size="sm"
               onClick={handleBackToRooms}
-              className="p-1"
+              className="p-1 flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -114,7 +114,7 @@ export default function Sidebar({
               value={selectedRoom.name}
               onChange={(e) => handleNameChange(e.target.value)}
               onBlur={handleNameBlur}
-              className="text-xl font-semibold border-none bg-transparent p-2 h-auto focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 resize-none min-h-[2rem] max-h-[6rem] overflow-hidden"
+              className="flex-1 text-2xl font-semibold border-none bg-transparent p-2 h-auto focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 resize-none min-h-[2rem] max-h-[6rem] overflow-hidden"
               rows={1}
             />
           ) : (
