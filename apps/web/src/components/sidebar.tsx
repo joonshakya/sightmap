@@ -62,8 +62,13 @@ export default function Sidebar({
   }, [selectedRoomId]);
 
   useEffect(() => {
-    if (selectedRoom && textareaRef.current) {
-      // Always focus when a room is selected, but use setTimeout to ensure the textarea is fully rendered
+    if (
+      selectedRoom &&
+      currentScreen === "details" &&
+      textareaRef.current
+    ) {
+      // Focus and select all text when room details screen is open and a room is selected
+      // Use setTimeout to ensure the textarea is fully rendered
       setTimeout(() => {
         if (textareaRef.current) {
           textareaRef.current.focus();
@@ -71,7 +76,7 @@ export default function Sidebar({
         }
       }, 0);
     }
-  }, [selectedRoom?.id]);
+  }, [selectedRoom?.id, currentScreen]);
 
   const handleRoomClick = (room: Room) => {
     onRoomSelect(room.id);
