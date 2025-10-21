@@ -259,6 +259,10 @@ export default function DrawingCanvas({
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
   const [pendingRooms, setPendingRooms] = useState<PendingRoom[]>([]);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const [accumulatedDeltaX, setAccumulatedDeltaX] = useState(0);
+  const [accumulatedDeltaY, setAccumulatedDeltaY] = useState(0);
   const stageRef = useRef<any>(null);
 
   // Keyboard event handling for delete
@@ -294,23 +298,31 @@ export default function DrawingCanvas({
     const { width: stageWidth, height: stageHeight } =
       stageDimensions;
 
+    // Calculate visible area bounds considering pan offset
+    const startX = Math.floor(-panX / gridSize) * gridSize;
+    const endX =
+      Math.ceil((-panX + stageWidth) / gridSize) * gridSize;
+    const startY = Math.floor(-panY / gridSize) * gridSize;
+    const endY =
+      Math.ceil((-panY + stageHeight) / gridSize) * gridSize;
+
     // Vertical lines
-    for (let x = 0; x <= stageWidth; x += gridSize) {
+    for (let x = startX; x <= endX; x += gridSize) {
       lines.push(
         <Line
           key={`v-${x}`}
-          points={[x, 0, x, stageHeight]}
+          points={[x, startY, x, endY]}
           stroke={COLORS.grid}
           strokeWidth={1}
         />
       );
     }
     // Horizontal lines
-    for (let y = 0; y <= stageHeight; y += gridSize) {
+    for (let y = startY; y <= endY; y += gridSize) {
       lines.push(
         <Line
           key={`h-${y}`}
-          points={[0, y, stageWidth, y]}
+          points={[startX, y, endX, y]}
           stroke={COLORS.grid}
           strokeWidth={1}
         />
@@ -459,6 +471,44 @@ export default function DrawingCanvas({
     setSelectedRoomId(null);
   };
 
+  const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
+    e.evt.preventDefault();
+
+    const deltaX = e.evt.deltaX;
+    const deltaY = e.evt.deltaY;
+
+    // Accumulate deltas
+    setAccumulatedDeltaX((prev) => {
+      const newAccumulated = prev + deltaX;
+      const panSteps = Math.floor(
+        Math.abs(newAccumulated) / gridSize
+      );
+
+      if (panSteps > 0) {
+        const panAmount =
+          Math.sign(newAccumulated) * panSteps * gridSize;
+        setPanX((panX) => panX - panAmount);
+        return newAccumulated - panAmount;
+      }
+      return newAccumulated;
+    });
+
+    setAccumulatedDeltaY((prev) => {
+      const newAccumulated = prev + deltaY;
+      const panSteps = Math.floor(
+        Math.abs(newAccumulated) / gridSize
+      );
+
+      if (panSteps > 0) {
+        const panAmount =
+          Math.sign(newAccumulated) * panSteps * gridSize;
+        setPanY((panY) => panY - panAmount);
+        return newAccumulated - panAmount;
+      }
+      return newAccumulated;
+    });
+  };
+
   const handleSave = () => {
     if (!onRoomCreate) return;
 
@@ -498,9 +548,12 @@ export default function DrawingCanvas({
           ref={stageRef}
           width={stageDimensions.width}
           height={stageDimensions.height}
+          x={panX}
+          y={panY}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
+          onWheel={handleWheel}
         >
           <Layer>
             {/* Grid */}
