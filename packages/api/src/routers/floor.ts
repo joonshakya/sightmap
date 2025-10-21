@@ -186,6 +186,40 @@ export const floorRouter = router({
       }
     }),
 
+  // Update room name
+  updateRoomName: publicProcedure
+    .input(
+      z.object({
+        roomId: z.cuid(),
+        name: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        return await prisma.room.update({
+          where: { id: input.roomId },
+          data: {
+            name: input.name,
+          },
+          include: {
+            floor: {
+              include: {
+                building: true,
+              },
+            },
+          },
+        });
+      } catch (error: any) {
+        if (error.code === "P2025") {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Room not found",
+          });
+        }
+        throw error;
+      }
+    }),
+
   // Get all paths and rooms in a floor with data for DrawingCanvas
   getFloorData: publicProcedure
     .input(z.object({ floorId: z.cuid() }))

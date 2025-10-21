@@ -61,6 +61,16 @@ function RouteComponent() {
     })
   );
 
+  const updateRoomName = useMutation(
+    trpc.floor.updateRoomName.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: trpc.floor.getFloorData.queryKey({ floorId }),
+        });
+      },
+    })
+  );
+
   const handleRoomUpdate = (
     input: RouterInputs["floor"]["updateRoomCoordinates"]
   ) => {
@@ -122,6 +132,9 @@ function RouteComponent() {
         rooms={floorData.data?.rooms || []}
         selectedRoomId={selectedRoomId}
         onRoomSelect={setSelectedRoomId}
+        onRoomNameUpdate={(roomId, name) => {
+          updateRoomName.mutate({ roomId, name });
+        }}
       />
       <div
         className="flex-1"

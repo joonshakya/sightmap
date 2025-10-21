@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { trpc } from "@/utils/trpc";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -7,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { ArrowLeft, MapPin, Route } from "lucide-react";
 import type { RouterOutputs } from "@/utils/trpc";
 
@@ -17,6 +20,7 @@ interface SidebarProps {
   rooms: Room[];
   selectedRoomId: string | null;
   onRoomSelect: (roomId: string | null) => void;
+  onRoomNameUpdate: (roomId: string, name: string) => void;
   className?: string;
 }
 
@@ -32,6 +36,7 @@ export default function Sidebar({
   rooms,
   selectedRoomId,
   onRoomSelect,
+  onRoomNameUpdate,
   className = "",
 }: SidebarProps) {
   const [currentScreen, setCurrentScreen] = useState<Screen>("rooms");
@@ -93,7 +98,10 @@ export default function Sidebar({
             onRoomClick={handleRoomClick}
           />
         ) : selectedRoom ? (
-          <RoomDetailsScreen room={selectedRoom} />
+          <RoomDetailsScreen
+            room={selectedRoom}
+            onRoomNameUpdate={onRoomNameUpdate}
+          />
         ) : null}
       </div>
     </div>
@@ -150,10 +158,31 @@ function RoomListScreen({
 
 interface RoomDetailsScreenProps {
   room: Room;
+  onRoomNameUpdate: (roomId: string, name: string) => void;
 }
 
-function RoomDetailsScreen({ room }: RoomDetailsScreenProps) {
+function RoomDetailsScreen({
+  room,
+  onRoomNameUpdate,
+}: RoomDetailsScreenProps) {
+  const queryClient = useQueryClient();
   const connectedPaths = getConnectedPaths(room);
+
+  const handleNameChange = (newName: string) => {
+    // Update the cache directly
+    queryClient.setQueryData(
+      trpc.floor.getFloorData.queryKey({ floorId: room.floorId }),
+      (oldData: any) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          rooms: oldData.rooms.map((r: Room) =>
+            r.id === room.id ? { ...r, name: newName } : r
+          ),
+        };
+      }
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -165,7 +194,18 @@ function RoomDetailsScreen({ room }: RoomDetailsScreenProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="space-y-2 text-sm">
+          <div className="space-y-3 text-sm">
+            <div className="space-y-1">
+              <label className="font-medium">Name:</label>
+              <Input
+                value={room.name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                onBlur={() => {
+                  onRoomNameUpdate(room.id, room.name.trim());
+                }}
+                className="text-sm"
+              />
+            </div>
             <div>
               <span className="font-medium">Number:</span>{" "}
               {room.number}
