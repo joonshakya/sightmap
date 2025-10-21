@@ -1,10 +1,17 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import { Stage, Layer, Rect, Line, Group } from "react-konva";
 import { Button } from "@/components/ui/button";
 import { Save } from "lucide-react";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type { RouterInputs, RouterOutputs } from "@/utils/trpc";
 
+// Types
 type Room = RouterOutputs["floor"]["getFloorData"]["rooms"][number];
 
 type PendingRoom = {
@@ -19,7 +26,17 @@ type PendingRoom = {
 
 type RenderableRoom = Room | PendingRoom;
 
-// Color constants
+type Position = { x: number; y: number };
+
+type DrawingCanvasConfig = {
+  gridSize: number;
+  zoomLimits: { min: number; max: number };
+  panStepSize: number;
+  zoomStepSize: number;
+  touchpadPinchThreshold: number;
+};
+
+// Constants
 const COLORS = {
   grid: "#e0e0e0",
   wall: {
@@ -41,6 +58,437 @@ const COLORS = {
     stroke: "rgba(210, 180, 140, 0.7)",
   },
 } as const;
+
+const DEFAULT_CONFIG: DrawingCanvasConfig = {
+  gridSize: 20,
+  zoomLimits: { min: 0.1, max: 5 },
+  panStepSize: 20,
+  zoomStepSize: 0.1,
+  touchpadPinchThreshold: 100,
+};
+
+// Utility functions
+const screenToWorld = (
+  screenPos: Position,
+  panX: number,
+  panY: number,
+  zoom: number
+): Position => ({
+  x: (screenPos.x - panX) / zoom,
+  y: (screenPos.y - panY) / zoom,
+});
+
+const worldToScreen = (
+  worldPos: Position,
+  panX: number,
+  panY: number,
+  zoom: number
+): Position => ({
+  x: worldPos.x * zoom + panX,
+  y: worldPos.y * zoom + panY,
+});
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
+
+const getDistance = (p1: Position, p2: Position): number =>
+  Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+
+const getCenter = (p1: Position, p2: Position): Position => ({
+  x: (p1.x + p2.x) / 2,
+  y: (p1.y + p2.y) / 2,
+});
+
+const snapToGrid = (pos: Position, gridSize: number): Position => ({
+  x: Math.round(pos.x / gridSize) * gridSize,
+  y: Math.round(pos.y / gridSize) * gridSize,
+});
+
+// Custom hook for room management
+const useRoomManagement = (
+  rooms: Room[],
+  onRoomUpdate: (
+    input: RouterInputs["floor"]["updateRoomCoordinates"]
+  ) => void,
+  onRoomDelete?: (roomId: string) => void
+) => {
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(
+    null
+  );
+  const [pendingRooms, setPendingRooms] = useState<PendingRoom[]>([]);
+
+  const updateRoomDoor = useCallback(
+    (room: RenderableRoom, worldPos: Position, gridSize: number) => {
+      const { doorX, doorY } = calculateDoorPosition(
+        worldPos,
+        room,
+        gridSize
+      );
+
+      if ("doorX" in room) {
+        // Saved room
+        onRoomUpdate({
+          roomId: room.id,
+          x: room.x,
+          y: room.y,
+          width: room.width,
+          height: room.height,
+          doorX,
+          doorY,
+        });
+      } else {
+        // Pending room
+        setPendingRooms((prev) =>
+          prev.map((r) =>
+            r.id === room.id ? { ...r, doorX, doorY } : r
+          )
+        );
+      }
+    },
+    [onRoomUpdate]
+  );
+
+  const snapRoomPosition = useCallback(
+    (e: KonvaEventObject<DragEvent>, gridSize: number) => {
+      const newX = Math.round(e.target.x() / gridSize) * gridSize;
+      const newY = Math.round(e.target.y() / gridSize) * gridSize;
+
+      // Snap visual position immediately
+      e.target.x(newX);
+      e.target.y(newY);
+
+      return { newX, newY };
+    },
+    []
+  );
+
+  const handleRoomDragEnd = useCallback(
+    (
+      e: KonvaEventObject<DragEvent>,
+      room: Room,
+      gridSize: number
+    ) => {
+      const { newX, newY } = snapRoomPosition(e, gridSize);
+
+      onRoomUpdate({
+        roomId: room.id,
+        x: newX,
+        y: newY,
+        width: room.width,
+        height: room.height,
+      });
+      setSelectedRoomId(null);
+    },
+    [onRoomUpdate, snapRoomPosition]
+  );
+
+  const handlePendingRoomDragEnd = useCallback(
+    (
+      e: KonvaEventObject<DragEvent>,
+      room: PendingRoom,
+      gridSize: number
+    ) => {
+      const { newX, newY } = snapRoomPosition(e, gridSize);
+
+      setPendingRooms((prev) =>
+        prev.map((r) =>
+          r.id === room.id ? { ...r, x: newX, y: newY } : r
+        )
+      );
+      setSelectedRoomId(null);
+    },
+    [snapRoomPosition]
+  );
+
+  const deleteSelectedRoom = useCallback(() => {
+    if (!selectedRoomId) return;
+
+    const savedRoom = rooms.find(
+      (room) => room.id === selectedRoomId
+    );
+    if (savedRoom && onRoomDelete) {
+      onRoomDelete(selectedRoomId);
+    } else {
+      setPendingRooms((prev) =>
+        prev.filter((room) => room.id !== selectedRoomId)
+      );
+    }
+    setSelectedRoomId(null);
+  }, [selectedRoomId, rooms, onRoomDelete]);
+
+  const savePendingRooms = useCallback(
+    (
+      onRoomCreate?: (
+        x: number,
+        y: number,
+        width: number,
+        height: number,
+        doorX?: number,
+        doorY?: number
+      ) => void
+    ) => {
+      if (!onRoomCreate) return;
+
+      pendingRooms.forEach((room) => {
+        onRoomCreate(
+          room.x,
+          room.y,
+          room.width,
+          room.height,
+          room.doorX,
+          room.doorY
+        );
+      });
+      setPendingRooms([]);
+    },
+    [pendingRooms]
+  );
+
+  return {
+    selectedRoomId,
+    setSelectedRoomId,
+    pendingRooms,
+    setPendingRooms,
+    updateRoomDoor,
+    handleRoomDragEnd,
+    handlePendingRoomDragEnd,
+    deleteSelectedRoom,
+    savePendingRooms,
+  };
+};
+
+// Custom hook for drawing functionality
+const useDrawing = (
+  gridSize: number,
+  onRoomCreated?: (room: PendingRoom) => void
+) => {
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [startPos, setStartPos] = useState<Position>({ x: 0, y: 0 });
+  const [currentPos, setCurrentPos] = useState<Position>({
+    x: 0,
+    y: 0,
+  });
+
+  const startDrawing = useCallback((worldPos: Position) => {
+    setIsDrawing(true);
+    setStartPos(worldPos);
+    setCurrentPos(worldPos);
+  }, []);
+
+  const updateDrawing = useCallback(
+    (worldPos: Position) => {
+      if (isDrawing) {
+        setCurrentPos(worldPos);
+      }
+    },
+    [isDrawing]
+  );
+
+  const finishDrawing = useCallback(() => {
+    if (!isDrawing) return;
+
+    const width = Math.abs(currentPos.x - startPos.x);
+    const height = Math.abs(currentPos.y - startPos.y);
+
+    setIsDrawing(false);
+
+    if (width <= gridSize || height <= gridSize) return;
+
+    // Snap to grid
+    const x = Math.min(startPos.x, currentPos.x);
+    const y = Math.min(startPos.y, currentPos.y);
+    const snappedX = Math.round(x / gridSize) * gridSize;
+    const snappedY = Math.round(y / gridSize) * gridSize;
+    const snappedWidth = Math.round(width / gridSize) * gridSize;
+    const snappedHeight = Math.round(height / gridSize) * gridSize;
+
+    const newRoom: PendingRoom = {
+      id: `pending-${Date.now()}-${Math.random()}`,
+      x: snappedX,
+      y: snappedY,
+      width: snappedWidth,
+      height: snappedHeight,
+    };
+
+    if (onRoomCreated) {
+      onRoomCreated(newRoom);
+    }
+  }, [isDrawing, startPos, currentPos, gridSize, onRoomCreated]);
+
+  return {
+    isDrawing,
+    startPos,
+    currentPos,
+    startDrawing,
+    updateDrawing,
+    finishDrawing,
+  };
+};
+
+// Custom hook for pan/zoom functionality
+const usePanZoom = (config: DrawingCanvasConfig) => {
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const [lastCenter, setLastCenter] = useState<Position>({
+    x: 0,
+    y: 0,
+  });
+  const [lastDist, setLastDist] = useState(0);
+
+  const zoomTo = useCallback(
+    (newZoom: number, centerPoint?: Position) => {
+      const clampedZoom = clamp(
+        newZoom,
+        config.zoomLimits.min,
+        config.zoomLimits.max
+      );
+
+      if (centerPoint) {
+        // Zoom towards a specific point
+        const worldPoint = screenToWorld(
+          centerPoint,
+          panX,
+          panY,
+          zoom
+        );
+        const newPanX = centerPoint.x - worldPoint.x * clampedZoom;
+        const newPanY = centerPoint.y - worldPoint.y * clampedZoom;
+
+        setPanX(newPanX);
+        setPanY(newPanY);
+      }
+
+      setZoom(clampedZoom);
+    },
+    [panX, panY, zoom, config.zoomLimits]
+  );
+
+  const panBy = useCallback((deltaX: number, deltaY: number) => {
+    setPanX((prev) => prev - deltaX);
+    setPanY((prev) => prev - deltaY);
+  }, []);
+
+  const handleWheel = useCallback(
+    (e: KonvaEventObject<WheelEvent>, stage: any) => {
+      e.evt.preventDefault();
+
+      const pointer = stage.getPointerPosition();
+      if (!pointer) return;
+
+      const deltaX = e.evt.deltaX;
+      const deltaY = e.evt.deltaY;
+
+      // Check if this is a zoom gesture
+      if (
+        e.evt.ctrlKey ||
+        e.evt.metaKey ||
+        Math.abs(deltaY) > config.touchpadPinchThreshold
+      ) {
+        const zoomFactor =
+          deltaY > 0
+            ? 1 - config.zoomStepSize
+            : 1 + config.zoomStepSize;
+        const newZoom = clamp(
+          zoom * zoomFactor,
+          config.zoomLimits.min,
+          config.zoomLimits.max
+        );
+
+        // Zoom towards mouse position
+        const worldPoint = screenToWorld(pointer, panX, panY, zoom);
+        const newPanX = pointer.x - worldPoint.x * newZoom;
+        const newPanY = pointer.y - worldPoint.y * newZoom;
+
+        setZoom(newZoom);
+        setPanX(newPanX);
+        setPanY(newPanY);
+      } else {
+        // This is a pan gesture - pan directly for smooth movement
+        const panSensitivity = 1; // Adjust this value to control pan speed
+        setPanX((panX) => panX - deltaX * panSensitivity);
+        setPanY((panY) => panY - deltaY * panSensitivity);
+      }
+    },
+    [panX, panY, zoom, config]
+  );
+
+  const handleTouchStart = useCallback(
+    (e: KonvaEventObject<TouchEvent>) => {
+      e.evt.preventDefault();
+
+      const touch1 = e.evt.touches[0];
+      const touch2 = e.evt.touches[1];
+
+      if (touch1 && touch2) {
+        const p1 = { x: touch1.clientX, y: touch1.clientY };
+        const p2 = { x: touch2.clientX, y: touch2.clientY };
+
+        const center = getCenter(p1, p2);
+        const dist = getDistance(p1, p2);
+
+        setLastCenter(center);
+        setLastDist(dist);
+      }
+    },
+    []
+  );
+
+  const handleTouchMove = useCallback(
+    (e: KonvaEventObject<TouchEvent>) => {
+      e.evt.preventDefault();
+
+      const touch1 = e.evt.touches[0];
+      const touch2 = e.evt.touches[1];
+
+      if (touch1 && touch2 && lastDist > 0) {
+        const p1 = { x: touch1.clientX, y: touch1.clientY };
+        const p2 = { x: touch2.clientX, y: touch2.clientY };
+
+        const center = getCenter(p1, p2);
+        const dist = getDistance(p1, p2);
+
+        const newZoom = clamp(
+          zoom * (dist / lastDist),
+          config.zoomLimits.min,
+          config.zoomLimits.max
+        );
+
+        // Calculate pan adjustment to keep center point fixed
+        const worldPoint = screenToWorld(center, panX, panY, zoom);
+        const newPanX = center.x - worldPoint.x * newZoom;
+        const newPanY = center.y - worldPoint.y * newZoom;
+
+        setZoom(newZoom);
+        setPanX(newPanX);
+        setPanY(newPanY);
+        setLastCenter(center);
+        setLastDist(dist);
+      }
+    },
+    [lastDist, lastCenter, panX, panY, zoom, config.zoomLimits]
+  );
+
+  const handleTouchEnd = useCallback(
+    (e: KonvaEventObject<TouchEvent>) => {
+      e.evt.preventDefault();
+      setLastDist(0);
+    },
+    []
+  );
+
+  return {
+    panX,
+    panY,
+    zoom,
+    zoomTo,
+    panBy,
+    handleWheel,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+  };
+};
 
 // Helper function to check if door is at a corner position
 const isCornerDoor = (
@@ -139,18 +587,11 @@ const RoomComponent = ({
       ? room.doorX !== null && room.doorY !== null
       : room.doorX !== undefined && room.doorY !== undefined;
 
-  // Constrain drag to grid positions
-  const dragBoundFunc = (pos: { x: number; y: number }) => ({
-    x: Math.round(pos.x / gridSize) * gridSize,
-    y: Math.round(pos.y / gridSize) * gridSize,
-  });
-
   return (
     <Group
       x={room.x}
       y={room.y}
       draggable
-      dragBoundFunc={dragBoundFunc}
       onDragEnd={onDragEnd}
       onClick={onClick}
     >
@@ -234,7 +675,7 @@ export default function DrawingCanvas({
   onRoomUpdate,
   onRoomCreate,
   onRoomDelete,
-  gridSize = 20,
+  gridSize = DEFAULT_CONFIG.gridSize,
 }: {
   stageDimensions: { width: number; height: number };
   rooms: Room[];
@@ -252,18 +693,50 @@ export default function DrawingCanvas({
   onRoomDelete?: (roomId: string) => void;
   gridSize?: number;
 }) {
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(
-    null
-  );
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
-  const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
-  const [pendingRooms, setPendingRooms] = useState<PendingRoom[]>([]);
-  const [panX, setPanX] = useState(0);
-  const [panY, setPanY] = useState(0);
-  const [accumulatedDeltaX, setAccumulatedDeltaX] = useState(0);
-  const [accumulatedDeltaY, setAccumulatedDeltaY] = useState(0);
   const stageRef = useRef<any>(null);
+
+  // Configuration
+  const config = useMemo<DrawingCanvasConfig>(
+    () => ({
+      ...DEFAULT_CONFIG,
+      gridSize,
+    }),
+    [gridSize]
+  );
+
+  // Custom hooks for different functionalities
+  const {
+    selectedRoomId,
+    setSelectedRoomId,
+    pendingRooms,
+    updateRoomDoor,
+    handleRoomDragEnd,
+    handlePendingRoomDragEnd,
+    deleteSelectedRoom,
+    savePendingRooms,
+    setPendingRooms,
+  } = useRoomManagement(rooms, onRoomUpdate, onRoomDelete);
+
+  const {
+    isDrawing,
+    startPos,
+    currentPos,
+    startDrawing,
+    updateDrawing,
+    finishDrawing,
+  } = useDrawing(gridSize, (newRoom) => {
+    setPendingRooms((prev) => [...prev, newRoom]);
+  });
+
+  const {
+    panX,
+    panY,
+    zoom,
+    handleWheel,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+  } = usePanZoom(config);
 
   // Keyboard event handling for delete
   useEffect(() => {
@@ -272,39 +745,27 @@ export default function DrawingCanvas({
         (e.key === "Delete" || e.key === "Backspace") &&
         selectedRoomId
       ) {
-        // Check if it's a saved room
-        const savedRoom = rooms.find(
-          (room) => room.id === selectedRoomId
-        );
-        if (savedRoom && onRoomDelete) {
-          onRoomDelete(selectedRoomId);
-        } else {
-          // It's a pending room, remove from pending rooms
-          setPendingRooms((prev) =>
-            prev.filter((room) => room.id !== selectedRoomId)
-          );
-        }
-        setSelectedRoomId(null);
+        deleteSelectedRoom();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedRoomId, onRoomDelete, rooms]);
+  }, [selectedRoomId, deleteSelectedRoom]);
 
   // Generate grid lines
-  const generateGrid = () => {
+  const generateGrid = useCallback(() => {
     const lines = [];
     const { width: stageWidth, height: stageHeight } =
       stageDimensions;
 
-    // Calculate visible area bounds considering pan offset
-    const startX = Math.floor(-panX / gridSize) * gridSize;
+    // Calculate visible area bounds considering pan offset and zoom
+    const startX = Math.floor(-panX / zoom / gridSize) * gridSize;
     const endX =
-      Math.ceil((-panX + stageWidth) / gridSize) * gridSize;
-    const startY = Math.floor(-panY / gridSize) * gridSize;
+      Math.ceil((-panX + stageWidth) / zoom / gridSize) * gridSize;
+    const startY = Math.floor(-panY / zoom / gridSize) * gridSize;
     const endY =
-      Math.ceil((-panY + stageHeight) / gridSize) * gridSize;
+      Math.ceil((-panY + stageHeight) / zoom / gridSize) * gridSize;
 
     // Vertical lines
     for (let x = startX; x <= endX; x += gridSize) {
@@ -313,7 +774,7 @@ export default function DrawingCanvas({
           key={`v-${x}`}
           points={[x, startY, x, endY]}
           stroke={COLORS.grid}
-          strokeWidth={1}
+          strokeWidth={1 / zoom}
         />
       );
     }
@@ -324,12 +785,12 @@ export default function DrawingCanvas({
           key={`h-${y}`}
           points={[startX, y, endX, y]}
           stroke={COLORS.grid}
-          strokeWidth={1}
+          strokeWidth={1 / zoom}
         />
       );
     }
     return lines;
-  };
+  }, [stageDimensions, panX, panY, zoom, gridSize]);
 
   const handleMouseDown = (e: KonvaEventObject<MouseEvent>) => {
     const stage = e.target.getStage();
@@ -338,104 +799,51 @@ export default function DrawingCanvas({
     const pos = stage.getPointerPosition();
     if (!pos) return;
 
+    // getPointerPosition() returns screen coordinates since Stage has no transformation
+    // Convert to world coordinates by accounting for Group transformation
+    const worldPos = screenToWorld(pos, panX, panY, zoom);
+
     // Find clicked room (saved or pending) on border
     const clickedRoom = [...rooms, ...pendingRooms].find((room) =>
-      isOnRoomBorder(pos, room, gridSize)
+      isOnRoomBorder(worldPos, room, gridSize)
     );
 
     if (clickedRoom) {
       // Clicked on wall border - set door position
-      const { doorX, doorY } = calculateDoorPosition(
-        pos,
-        clickedRoom,
-        gridSize
-      );
-
-      if ("doorX" in clickedRoom) {
-        // It's a saved room
-        onRoomUpdate({
-          roomId: clickedRoom.id,
-          x: clickedRoom.x,
-          y: clickedRoom.y,
-          width: clickedRoom.width,
-          height: clickedRoom.height,
-          doorX,
-          doorY,
-        });
-      } else {
-        // It's a pending room
-        setPendingRooms((prev) =>
-          prev.map((r) =>
-            r.id === clickedRoom.id ? { ...r, doorX, doorY } : r
-          )
-        );
-      }
+      updateRoomDoor(clickedRoom, worldPos, gridSize);
       setSelectedRoomId(clickedRoom.id);
       return;
     }
 
     // Find clicked room interior
     const clickedRoomInterior = [...rooms, ...pendingRooms].find(
-      (room) => isInRoomInterior(pos, room)
+      (room) => isInRoomInterior(worldPos, room)
     );
 
     if (clickedRoomInterior) {
       setSelectedRoomId(clickedRoomInterior.id);
     } else {
       // Start drawing new room
-      setIsDrawing(true);
-      setStartPos(pos);
-      setCurrentPos(pos);
+      startDrawing(worldPos);
       setSelectedRoomId(null);
     }
   };
 
   const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
-    if (!isDrawing) return;
-
     const stage = e.target.getStage();
     if (!stage) return;
 
     const pos = stage.getPointerPosition();
     if (!pos) return;
 
-    setCurrentPos(pos);
+    // Convert screen coordinates to world coordinates
+    const worldPos = screenToWorld(pos, panX, panY, zoom);
+
+    updateDrawing(worldPos);
   };
 
   const handleMouseUp = (e: KonvaEventObject<MouseEvent>) => {
-    if (!isDrawing) return;
-
-    const stage = e.target.getStage();
-    if (!stage) return;
-
-    const pos = stage.getPointerPosition();
-    if (!pos) return;
-
-    const width = Math.abs(pos.x - startPos.x);
-    const height = Math.abs(pos.y - startPos.y);
-    const x = Math.min(startPos.x, pos.x);
-    const y = Math.min(startPos.y, pos.y);
-
-    if (width > gridSize && height > gridSize) {
-      // Snap to grid
-      const snappedX = Math.round(x / gridSize) * gridSize;
-      const snappedY = Math.round(y / gridSize) * gridSize;
-      const snappedWidth = Math.round(width / gridSize) * gridSize;
-      const snappedHeight = Math.round(height / gridSize) * gridSize;
-
-      // Add to pending rooms instead of creating immediately
-      const newPendingRoom: PendingRoom = {
-        id: `pending-${Date.now()}-${Math.random()}`,
-        x: snappedX,
-        y: snappedY,
-        width: snappedWidth,
-        height: snappedHeight,
-      };
-
-      setPendingRooms((prev) => [...prev, newPendingRoom]);
-    }
-
-    setIsDrawing(false);
+    finishDrawing();
   };
 
   const handleDragEnd = (
@@ -444,6 +852,10 @@ export default function DrawingCanvas({
   ) => {
     const newX = Math.round(e.target.x() / gridSize) * gridSize;
     const newY = Math.round(e.target.y() / gridSize) * gridSize;
+
+    // Snap the visual position immediately
+    e.target.x(newX);
+    e.target.y(newY);
 
     onRoomUpdate({
       roomId: room.id,
@@ -462,6 +874,10 @@ export default function DrawingCanvas({
     const newX = Math.round(e.target.x() / gridSize) * gridSize;
     const newY = Math.round(e.target.y() / gridSize) * gridSize;
 
+    // Snap the visual position immediately
+    e.target.x(newX);
+    e.target.y(newY);
+
     // Update pending room position
     setPendingRooms((prev) =>
       prev.map((r) =>
@@ -469,44 +885,6 @@ export default function DrawingCanvas({
       )
     );
     setSelectedRoomId(null);
-  };
-
-  const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
-    e.evt.preventDefault();
-
-    const deltaX = e.evt.deltaX;
-    const deltaY = e.evt.deltaY;
-
-    // Accumulate deltas
-    setAccumulatedDeltaX((prev) => {
-      const newAccumulated = prev + deltaX;
-      const panSteps = Math.floor(
-        Math.abs(newAccumulated) / gridSize
-      );
-
-      if (panSteps > 0) {
-        const panAmount =
-          Math.sign(newAccumulated) * panSteps * gridSize;
-        setPanX((panX) => panX - panAmount);
-        return newAccumulated - panAmount;
-      }
-      return newAccumulated;
-    });
-
-    setAccumulatedDeltaY((prev) => {
-      const newAccumulated = prev + deltaY;
-      const panSteps = Math.floor(
-        Math.abs(newAccumulated) / gridSize
-      );
-
-      if (panSteps > 0) {
-        const panAmount =
-          Math.sign(newAccumulated) * panSteps * gridSize;
-        setPanY((panY) => panY - panAmount);
-        return newAccumulated - panAmount;
-      }
-      return newAccumulated;
-    });
   };
 
   const handleSave = () => {
@@ -548,52 +926,55 @@ export default function DrawingCanvas({
           ref={stageRef}
           width={stageDimensions.width}
           height={stageDimensions.height}
-          x={panX}
-          y={panY}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
-          onWheel={handleWheel}
+          onWheel={(e) => handleWheel(e, stageRef.current)}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
           <Layer>
-            {/* Grid */}
-            {generateGrid()}
+            <Group x={panX} y={panY} scaleX={zoom} scaleY={zoom}>
+              {/* Grid */}
+              {generateGrid()}
 
-            {/* Rooms */}
-            {rooms.map((room) => (
-              <RoomComponent
-                key={room.id}
-                room={room}
-                selectedRoomId={selectedRoomId}
-                gridSize={gridSize}
-                onDragEnd={(e) => handleDragEnd(e, room)}
-                onClick={() => setSelectedRoomId(room.id)}
-              />
-            ))}
-
-            {/* Pending Rooms */}
-            {pendingRooms.map((room) => (
-              <RoomComponent
-                key={room.id}
-                room={room}
-                isPending
-                selectedRoomId={selectedRoomId}
-                gridSize={gridSize}
-                onDragEnd={(e) => handlePendingDragEnd(e, room)}
-                onClick={() => setSelectedRoomId(room.id)}
-              />
-            ))}
-
-            {/* Drawing preview */}
-            {isDrawing &&
-              (currentPos.x !== startPos.x ||
-                currentPos.y !== startPos.y) && (
-                <DrawingPreview
-                  startPos={startPos}
-                  currentPos={currentPos}
+              {/* Rooms */}
+              {rooms.map((room) => (
+                <RoomComponent
+                  key={room.id}
+                  room={room}
+                  selectedRoomId={selectedRoomId}
                   gridSize={gridSize}
+                  onDragEnd={(e) => handleDragEnd(e, room)}
+                  onClick={() => setSelectedRoomId(room.id)}
                 />
-              )}
+              ))}
+
+              {/* Pending Rooms */}
+              {pendingRooms.map((room) => (
+                <RoomComponent
+                  key={room.id}
+                  room={room}
+                  isPending
+                  selectedRoomId={selectedRoomId}
+                  gridSize={gridSize}
+                  onDragEnd={(e) => handlePendingDragEnd(e, room)}
+                  onClick={() => setSelectedRoomId(room.id)}
+                />
+              ))}
+
+              {/* Drawing preview */}
+              {isDrawing &&
+                (currentPos.x !== startPos.x ||
+                  currentPos.y !== startPos.y) && (
+                  <DrawingPreview
+                    startPos={startPos}
+                    currentPos={currentPos}
+                    gridSize={gridSize}
+                  />
+                )}
+            </Group>
           </Layer>
         </Stage>
       </div>
