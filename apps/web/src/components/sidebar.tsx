@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import {
+  useQueryClient,
+  useQuery,
+  useMutation,
+} from "@tanstack/react-query";
 import { trpc } from "@/utils/trpc";
 import { toast } from "sonner";
+import { useCompletion } from "@ai-sdk/react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,9 +17,35 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, MapPin, Route, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  MapPin,
+  Route,
+  Trash2,
+  Loader2,
+} from "lucide-react";
 import type { RouterOutputs } from "@/utils/trpc";
 import type { EditMode } from "@sightmap/common";
+import type { StepSize } from "@sightmap/common/prisma/enums";
+
+// Utility function to adjust steps based on user preference
+function adjustStepsForUser(
+  text: string,
+  stepSize: StepSize
+): string {
+  const multipliers: Record<StepSize, number> = {
+    SMALL: 0.7,
+    MEDIUM: 1.0,
+    LARGE: 1.3,
+  };
+
+  return text.replace(/\{\{(\d+)\}\}/g, (match, stepNumber) => {
+    const adjusted = Math.round(
+      parseInt(stepNumber) * multipliers[stepSize]
+    );
+    return `{{${adjusted}}}`;
+  });
+}
 
 type Room = RouterOutputs["floor"]["getFloorData"]["rooms"][number];
 type Path = Room["fromPaths"][number];
@@ -22,7 +53,9 @@ type Path = Room["fromPaths"][number];
 interface SidebarProps {
   rooms: Room[];
   selectedRoomId: string | null;
+  selectedPathId: string | null;
   onRoomSelect: (roomId: string | null) => void;
+  onPathSelect: (pathId: string | null) => void;
   onRoomNameUpdate: (roomId: string, name: string) => void;
   onRoomDelete?: (roomId: string) => void;
   onPathDelete?: (pathId: string) => void;
@@ -32,7 +65,7 @@ interface SidebarProps {
   className?: string;
 }
 
-type Screen = "rooms" | "details";
+type Screen = "rooms" | "details" | "instructions";
 
 const getConnectedPaths = (room: Room) => {
   const fromPaths = room.fromPaths || [];
@@ -43,7 +76,9 @@ const getConnectedPaths = (room: Room) => {
 export default function Sidebar({
   rooms,
   selectedRoomId,
+  selectedPathId,
   onRoomSelect,
+  onPathSelect,
   onRoomNameUpdate,
   onRoomDelete,
   onPathDelete,
@@ -135,7 +170,7 @@ export default function Sidebar({
 
   return (
     <div
-      className={`w-80 bg-gray-50 border-r border-gray-200 h-full absolute overflow-y-auto ${className}`}
+      className={`w-96 bg-gray-50 border-r border-gray-200 h-full absolute overflow-y-auto ${className}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -177,16 +212,236 @@ export default function Sidebar({
             mode={mode}
             onModeChange={onModeChange}
           />
-        ) : selectedRoom ? (
+        ) : currentScreen === "details" && selectedRoom ? (
           <RoomDetailsScreen
             room={selectedRoom}
+            onPathSelect={(pathId) => {
+              onPathSelect(pathId);
+              setCurrentScreen("instructions");
+            }}
             onRoomDelete={onRoomDelete}
             onPathDelete={onPathDelete}
             mode={mode}
             onPathCreateStart={onPathCreateStart}
           />
+        ) : currentScreen === "instructions" && selectedPathId ? (
+          <InstructionsScreen
+            pathId={selectedPathId}
+            onBack={() => {
+              setCurrentScreen("details");
+              onPathSelect(null);
+            }}
+          />
         ) : null}
       </div>
+    </div>
+  );
+}
+
+interface InstructionsScreenProps {
+  pathId: string;
+  onBack: () => void;
+}
+
+interface InstructionResponse {
+  instruction: string;
+  steps: Array<{
+    direction: "forward" | "backward" | "left" | "right";
+    steps: number;
+    nearbyRooms?: string[];
+  }>;
+}
+
+function InstructionsScreen({
+  pathId,
+  onBack,
+}: InstructionsScreenProps) {
+  const { completion, complete, isLoading } = useCompletion({
+    api: `${import.meta.env.VITE_SERVER_URL}/generate-instructions`,
+  });
+
+  // Fetch user settings for step size preference
+  const { data: userSettings } = useQuery(
+    trpc.userSettings.get.queryOptions()
+  );
+
+  // Save instructions mutation
+  const saveInstructionsMutation = useMutation(
+    trpc.floor.saveInstructions.mutationOptions({
+      onSuccess: () => {
+        toast.success("Instructions saved successfully!");
+      },
+      onError: (error) => {
+        toast.error("Failed to save instructions: " + error.message);
+      },
+    })
+  );
+
+  const handleGenerateInstructions = () => {
+    complete(JSON.stringify({ pathId }));
+  };
+
+  // Parse completion content with delimiters - incremental parsing
+  const parseCompletionContent = (content: string) => {
+    const instruction = content
+      .match(/INSTRUCTION:\s*(.+?)(?=\nSTEPS_START|$)/)?.[1]
+      ?.trim();
+
+    // Extract steps incrementally - don't wait for STEPS_END
+    const stepsSection =
+      content.match(/STEPS_START\s*\n([\s\S]*?)(STEPS_END|$)/)?.[1] ||
+      "";
+    const steps = stepsSection
+      .split("\n")
+      .filter((line) => line.startsWith("STEP:"))
+      .map((line) => line.replace("STEP: ", "").trim());
+
+    return { instruction, steps };
+  };
+
+  const parsedData = parseCompletionContent(completion);
+
+  const handleSaveInstructions = () => {
+    if (!parsedData.instruction || !parsedData.steps.length) return;
+
+    // Convert parsed data to instruction arrays
+    const descriptiveInstructions = [parsedData.instruction];
+    const conciseInstructions = parsedData.steps;
+
+    saveInstructionsMutation.mutate({
+      pathId,
+      descriptiveInstructions,
+      conciseInstructions,
+    });
+  };
+
+  // Instruction uses plain numbers, no {{}} to replace
+  const adjustedInstruction = parsedData.instruction || "";
+
+  // Apply step size adjustment to steps (parse {{step_number}} from text)
+  const adjustedSteps = parsedData.steps.map((stepText) => {
+    // Extract step number from {{number}} format
+    const stepMatch = stepText.match(/\{\{(\d+)\}\}/);
+    const stepNumber = stepMatch ? parseInt(stepMatch[1]) : 0;
+
+    const adjustedStepNumber = userSettings?.stepSize
+      ? Math.round(
+          stepNumber *
+            (userSettings.stepSize === "SMALL"
+              ? 1.4 // Small steps = more steps needed
+              : userSettings.stepSize === "LARGE"
+              ? 0.7 // Large steps = fewer steps needed
+              : 1.0) // Medium steps = normal
+        )
+      : stepNumber;
+
+    // Replace {{number}} with adjusted number
+    return stepText.replace(
+      /\{\{(\d+)\}\}/,
+      adjustedStepNumber.toString()
+    );
+  });
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={onBack}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <CardTitle className="text-base">
+              Path Instructions
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="space-y-4">
+            {/* Instructions Display */}
+            <div className="border border-gray-200 rounded-lg p-4 bg-white min-h-[200px]">
+              {!parsedData.instruction ? (
+                <p className="text-sm text-gray-500">
+                  Click "Generate Instructions" to create navigation
+                  instructions for this path.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {/* Main Instruction */}
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2">
+                      Instruction:
+                    </h4>
+                    <p className="text-sm whitespace-pre-wrap">
+                      {adjustedInstruction}
+                    </p>
+                  </div>
+
+                  {/* Step Details */}
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2">
+                      Steps:
+                    </h4>
+                    <div className="space-y-1">
+                      {adjustedSteps.map((stepText, index) => (
+                        <div
+                          key={index}
+                          className="text-sm text-gray-700"
+                        >
+                          {index + 1}. {stepText}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {isLoading && (
+                    <div className="flex items-center gap-2 text-sm text-gray-500 mt-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating instructions...
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2">
+              <Button
+                className="w-full"
+                onClick={handleGenerateInstructions}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Generating...
+                  </>
+                ) : (
+                  "Generate Instructions"
+                )}
+              </Button>
+
+              {parsedData.instruction &&
+                parsedData.steps.length > 0 && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleSaveInstructions}
+                    disabled={saveInstructionsMutation.isPending}
+                  >
+                    {saveInstructionsMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Instructions"
+                    )}
+                  </Button>
+                )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -276,6 +531,7 @@ function RoomListScreen({
 
 interface RoomDetailsScreenProps {
   room: Room;
+  onPathSelect?: (pathId: string) => void;
   onRoomDelete?: (roomId: string) => void;
   onPathDelete?: (pathId: string) => void;
   mode?: EditMode;
@@ -284,6 +540,7 @@ interface RoomDetailsScreenProps {
 
 function RoomDetailsScreen({
   room,
+  onPathSelect,
   onRoomDelete,
   onPathDelete,
   mode,
@@ -362,7 +619,14 @@ function RoomDetailsScreen({
                 return (
                   <div
                     key={path.id}
-                    className="border border-gray-200 rounded-lg p-3 bg-white"
+                    className={`border border-gray-200 rounded-lg p-3 bg-white ${
+                      onPathSelect
+                        ? "cursor-pointer hover:bg-gray-50"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      onPathSelect && onPathSelect(path.id)
+                    }
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">

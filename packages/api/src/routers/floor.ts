@@ -488,4 +488,28 @@ export const floorRouter = router({
         });
       });
     }),
+
+  // Save generated instructions for a path
+  saveInstructions: protectedProcedure
+    .input(
+      z.object({
+        pathId: z.cuid(),
+        descriptiveInstructions: z.array(z.string()),
+        conciseInstructions: z.array(z.string()),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await prisma.instructionSet.upsert({
+        where: { pathId: input.pathId },
+        update: {
+          descriptiveInstructions: input.descriptiveInstructions,
+          conciseInstructions: input.conciseInstructions,
+        },
+        create: {
+          pathId: input.pathId,
+          descriptiveInstructions: input.descriptiveInstructions,
+          conciseInstructions: input.conciseInstructions,
+        },
+      });
+    }),
 });

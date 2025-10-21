@@ -30,6 +30,9 @@ function RouteComponent() {
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(
     null
   );
+  const [selectedPathId, setSelectedPathId] = useState<string | null>(
+    null
+  );
   const [mode, setMode] = useState<EditMode>("room");
 
   const floorData = useQuery(
@@ -181,11 +184,13 @@ function RouteComponent() {
   return (
     <div className="flex relative">
       {/* Dummy div to reserve space for the absolutely positioned sidebar */}
-      <div className="w-80 flex-shrink-0"></div>
+      <div className="w-98 flex-shrink-0"></div>
       <Sidebar
         rooms={floorData.data?.rooms || []}
         selectedRoomId={selectedRoomId}
+        selectedPathId={selectedPathId}
         onRoomSelect={setSelectedRoomId}
+        onPathSelect={setSelectedPathId}
         onRoomNameUpdate={(roomId, name) => {
           updateRoomName.mutate({ roomId, name });
         }}
