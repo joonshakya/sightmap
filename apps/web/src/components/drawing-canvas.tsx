@@ -5,7 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { Stage, Layer, Rect, Line, Group } from "react-konva";
+import { Stage, Layer, Rect, Line, Group, Text } from "react-konva";
 import { Button } from "@/components/ui/button";
 import { Save } from "lucide-react";
 import type { KonvaEventObject } from "konva/lib/Node";
@@ -582,6 +582,8 @@ const RoomComponent = ({
       ? room.doorX !== null && room.doorY !== null
       : room.doorX !== undefined && room.doorY !== undefined;
 
+  const roomName = "name" in room ? room.name : "";
+
   return (
     <Group
       x={room.x}
@@ -623,6 +625,22 @@ const RoomComponent = ({
             fill={interiorFill}
           />
         )}
+      {/* Room name */}
+      {roomName && (
+        <Text
+          x={0}
+          y={0}
+          width={room.width}
+          height={room.height}
+          text={roomName}
+          fontSize={16}
+          fill="#333333"
+          align="center"
+          verticalAlign="middle"
+          wrap="word"
+          ellipsis={true}
+        />
+      )}
     </Group>
   );
 };

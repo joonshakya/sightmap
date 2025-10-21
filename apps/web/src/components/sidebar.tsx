@@ -45,6 +45,7 @@ export default function Sidebar({
   const [currentScreen, setCurrentScreen] = useState<Screen>("rooms");
   const queryClient = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const hasUserBlurredRef = useRef(false);
 
   const selectedRoom = rooms.find(
     (room) => room.id === selectedRoomId
@@ -59,13 +60,17 @@ export default function Sidebar({
     }
   }, [selectedRoomId]);
 
-  // Focus and select all text in the textarea when a room is selected
   useEffect(() => {
     if (selectedRoom && textareaRef.current) {
-      textareaRef.current.focus();
-      textareaRef.current.select();
+      // Always focus when a room is selected, but use setTimeout to ensure the textarea is fully rendered
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.select();
+        }
+      }, 0);
     }
-  }, [selectedRoom]);
+  }, [selectedRoom?.id]);
 
   const handleRoomClick = (room: Room) => {
     onRoomSelect(room.id);
@@ -98,6 +103,7 @@ export default function Sidebar({
 
   const handleNameBlur = () => {
     if (!selectedRoom) return;
+    hasUserBlurredRef.current = true;
     onRoomNameUpdate(selectedRoom.id, selectedRoom.name.trim());
   };
 
