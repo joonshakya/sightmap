@@ -145,11 +145,18 @@ const RoomComponent = ({
       ? room.doorX !== null && room.doorY !== null
       : room.doorX !== undefined && room.doorY !== undefined;
 
+  // Constrain drag to grid positions
+  const dragBoundFunc = (pos: { x: number; y: number }) => ({
+    x: Math.round(pos.x / gridSize) * gridSize,
+    y: Math.round(pos.y / gridSize) * gridSize,
+  });
+
   return (
     <Group
       x={room.x}
       y={room.y}
       draggable
+      dragBoundFunc={dragBoundFunc}
       onDragEnd={onDragEnd}
       onClick={onClick}
     >
@@ -407,10 +414,10 @@ export default function DrawingCanvas({
 
     if (width > gridSize && height > gridSize) {
       // Snap to grid
-      const snappedX = Math.floor(x / gridSize) * gridSize;
-      const snappedY = Math.floor(y / gridSize) * gridSize;
-      const snappedWidth = Math.floor(width / gridSize) * gridSize;
-      const snappedHeight = Math.floor(height / gridSize) * gridSize;
+      const snappedX = Math.round(x / gridSize) * gridSize;
+      const snappedY = Math.round(y / gridSize) * gridSize;
+      const snappedWidth = Math.round(width / gridSize) * gridSize;
+      const snappedHeight = Math.round(height / gridSize) * gridSize;
 
       // Add to pending rooms instead of creating immediately
       const newPendingRoom: PendingRoom = {
@@ -431,8 +438,8 @@ export default function DrawingCanvas({
     e: KonvaEventObject<DragEvent>,
     room: Room
   ) => {
-    const newX = Math.floor(e.target.x() / gridSize) * gridSize;
-    const newY = Math.floor(e.target.y() / gridSize) * gridSize;
+    const newX = Math.round(e.target.x() / gridSize) * gridSize;
+    const newY = Math.round(e.target.y() / gridSize) * gridSize;
 
     onRoomUpdate({
       roomId: room.id,
@@ -448,8 +455,8 @@ export default function DrawingCanvas({
     e: KonvaEventObject<DragEvent>,
     room: PendingRoom
   ) => {
-    const newX = Math.floor(e.target.x() / gridSize) * gridSize;
-    const newY = Math.floor(e.target.y() / gridSize) * gridSize;
+    const newX = Math.round(e.target.x() / gridSize) * gridSize;
+    const newY = Math.round(e.target.y() / gridSize) * gridSize;
 
     // Update pending room position
     setPendingRooms((prev) =>
