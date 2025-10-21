@@ -141,6 +141,8 @@ function RouteComponent() {
           <DrawingCanvas
             stageDimensions={stageDimensions}
             rooms={floorData.data?.rooms || []}
+            selectedRoomId={selectedRoomId}
+            onRoomSelect={setSelectedRoomId}
             onRoomUpdate={handleRoomUpdate}
             onRoomCreate={handleRoomCreate}
             onRoomDelete={handleRoomDelete}

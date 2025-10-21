@@ -110,11 +110,10 @@ const useRoomManagement = (
   onRoomUpdate: (
     input: RouterInputs["floor"]["updateRoomCoordinates"]
   ) => void,
+  selectedRoomId: string | null,
+  onRoomSelect: (roomId: string | null) => void,
   onRoomDelete?: (roomId: string) => void
 ) => {
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(
-    null
-  );
   const [pendingRooms, setPendingRooms] = useState<PendingRoom[]>([]);
 
   const updateRoomDoor = useCallback(
@@ -177,7 +176,6 @@ const useRoomManagement = (
         width: room.width,
         height: room.height,
       });
-      setSelectedRoomId(null);
     },
     [onRoomUpdate, snapRoomPosition]
   );
@@ -195,7 +193,6 @@ const useRoomManagement = (
           r.id === room.id ? { ...r, x: newX, y: newY } : r
         )
       );
-      setSelectedRoomId(null);
     },
     [snapRoomPosition]
   );
@@ -213,8 +210,8 @@ const useRoomManagement = (
         prev.filter((room) => room.id !== selectedRoomId)
       );
     }
-    setSelectedRoomId(null);
-  }, [selectedRoomId, rooms, onRoomDelete]);
+    onRoomSelect(null);
+  }, [selectedRoomId, rooms, onRoomDelete, onRoomSelect]);
 
   const savePendingRooms = useCallback(
     (
@@ -245,8 +242,6 @@ const useRoomManagement = (
   );
 
   return {
-    selectedRoomId,
-    setSelectedRoomId,
     pendingRooms,
     setPendingRooms,
     updateRoomDoor,
@@ -672,6 +667,8 @@ const DrawingPreview = ({
 export default function DrawingCanvas({
   stageDimensions,
   rooms,
+  selectedRoomId,
+  onRoomSelect,
   onRoomUpdate,
   onRoomCreate,
   onRoomDelete,
@@ -679,6 +676,8 @@ export default function DrawingCanvas({
 }: {
   stageDimensions: { width: number; height: number };
   rooms: Room[];
+  selectedRoomId: string | null;
+  onRoomSelect: (roomId: string | null) => void;
   onRoomUpdate: (
     input: RouterInputs["floor"]["updateRoomCoordinates"]
   ) => void;
@@ -706,8 +705,6 @@ export default function DrawingCanvas({
 
   // Custom hooks for different functionalities
   const {
-    selectedRoomId,
-    setSelectedRoomId,
     pendingRooms,
     updateRoomDoor,
     handleRoomDragEnd,
@@ -715,7 +712,13 @@ export default function DrawingCanvas({
     deleteSelectedRoom,
     savePendingRooms,
     setPendingRooms,
-  } = useRoomManagement(rooms, onRoomUpdate, onRoomDelete);
+  } = useRoomManagement(
+    rooms,
+    onRoomUpdate,
+    selectedRoomId,
+    onRoomSelect,
+    onRoomDelete
+  );
 
   const {
     isDrawing,
@@ -811,7 +814,7 @@ export default function DrawingCanvas({
     if (clickedRoom) {
       // Clicked on wall border - set door position
       updateRoomDoor(clickedRoom, worldPos, gridSize);
-      setSelectedRoomId(clickedRoom.id);
+      onRoomSelect(clickedRoom.id);
       return;
     }
 
@@ -821,11 +824,11 @@ export default function DrawingCanvas({
     );
 
     if (clickedRoomInterior) {
-      setSelectedRoomId(clickedRoomInterior.id);
+      onRoomSelect(clickedRoomInterior.id);
     } else {
       // Start drawing new room
       startDrawing(worldPos);
-      setSelectedRoomId(null);
+      onRoomSelect(null);
     }
   };
 
@@ -846,46 +849,20 @@ export default function DrawingCanvas({
     finishDrawing();
   };
 
-  const handleDragEnd = (
-    e: KonvaEventObject<DragEvent>,
-    room: Room
-  ) => {
-    const newX = Math.round(e.target.x() / gridSize) * gridSize;
-    const newY = Math.round(e.target.y() / gridSize) * gridSize;
+  // Wrapper functions for drag handlers to match expected signature
+  const handleRoomDragEndWrapper = useCallback(
+    (e: KonvaEventObject<DragEvent>, room: Room) => {
+      handleRoomDragEnd(e, room, gridSize);
+    },
+    [handleRoomDragEnd, gridSize]
+  );
 
-    // Snap the visual position immediately
-    e.target.x(newX);
-    e.target.y(newY);
-
-    onRoomUpdate({
-      roomId: room.id,
-      x: newX,
-      y: newY,
-      width: room.width,
-      height: room.height,
-    });
-    setSelectedRoomId(null);
-  };
-
-  const handlePendingDragEnd = (
-    e: KonvaEventObject<DragEvent>,
-    room: PendingRoom
-  ) => {
-    const newX = Math.round(e.target.x() / gridSize) * gridSize;
-    const newY = Math.round(e.target.y() / gridSize) * gridSize;
-
-    // Snap the visual position immediately
-    e.target.x(newX);
-    e.target.y(newY);
-
-    // Update pending room position
-    setPendingRooms((prev) =>
-      prev.map((r) =>
-        r.id === room.id ? { ...r, x: newX, y: newY } : r
-      )
-    );
-    setSelectedRoomId(null);
-  };
+  const handlePendingRoomDragEndWrapper = useCallback(
+    (e: KonvaEventObject<DragEvent>, room: PendingRoom) => {
+      handlePendingRoomDragEnd(e, room, gridSize);
+    },
+    [handlePendingRoomDragEnd, gridSize]
+  );
 
   const handleSave = () => {
     if (!onRoomCreate) return;
@@ -946,8 +923,8 @@ export default function DrawingCanvas({
                   room={room}
                   selectedRoomId={selectedRoomId}
                   gridSize={gridSize}
-                  onDragEnd={(e) => handleDragEnd(e, room)}
-                  onClick={() => setSelectedRoomId(room.id)}
+                  onDragEnd={(e) => handleRoomDragEndWrapper(e, room)}
+                  onClick={() => onRoomSelect(room.id)}
                 />
               ))}
 
@@ -959,8 +936,10 @@ export default function DrawingCanvas({
                   isPending
                   selectedRoomId={selectedRoomId}
                   gridSize={gridSize}
-                  onDragEnd={(e) => handlePendingDragEnd(e, room)}
-                  onClick={() => setSelectedRoomId(room.id)}
+                  onDragEnd={(e) =>
+                    handlePendingRoomDragEndWrapper(e, room)
+                  }
+                  onClick={() => onRoomSelect(room.id)}
                 />
               ))}
 

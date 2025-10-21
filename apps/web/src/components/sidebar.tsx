@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -39,6 +39,15 @@ export default function Sidebar({
   const selectedRoom = rooms.find(
     (room) => room.id === selectedRoomId
   );
+
+  // Automatically switch to details screen when a room is selected
+  useEffect(() => {
+    if (selectedRoomId) {
+      setCurrentScreen("details");
+    } else {
+      setCurrentScreen("rooms");
+    }
+  }, [selectedRoomId]);
 
   const handleRoomClick = (room: Room) => {
     onRoomSelect(room.id);
@@ -116,11 +125,7 @@ function RoomListScreen({
         rooms.map((room) => (
           <Card
             key={room.id}
-            className={`cursor-pointer transition-colors ${
-              selectedRoomId === room.id
-                ? "ring-2 ring-blue-500 bg-blue-50"
-                : "hover:bg-gray-100"
-            }`}
+            className="cursor-pointer transition-colors hover:bg-gray-100"
             onClick={() => onRoomClick(room)}
           >
             <CardContent className="p-3">
