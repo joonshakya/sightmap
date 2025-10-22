@@ -14,7 +14,7 @@ export default function Header() {
         <nav className="flex items-center gap-4 text-lg">
           <div className="flex items-center gap-1">
             <img
-              src="/public/sightmap_logo.png"
+              src="/sightmap_logo.png"
               alt="Sight Map logo"
               className="h-8 w-8 object-contain"
             />
