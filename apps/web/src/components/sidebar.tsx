@@ -285,8 +285,7 @@ function InstructionsScreen({
   const parseCompletionContent = (content: string) => {
     // Extract steps incrementally - don't wait for STEPS_END
     const stepsSection =
-      content.match(/STEPS_START\s*\n([\s\S]*?)(STEPS_END|$)/)?.[1] ||
-      "";
+      content.match(/SSTART\s*\n([\s\S]*?)(SEND|$)/)?.[1] || "";
     const steps = stepsSection
       .split("\n")
       .filter((line) => line.startsWith("STEP:"))
@@ -294,8 +293,7 @@ function InstructionsScreen({
 
     // Extract concise instructions
     const conciseSection =
-      content.match(/CONCISE:\s*\n([\s\S]*?)(END_CONCISE|$)/)?.[1] ||
-      "";
+      content.match(/C:\s*\n([\s\S]*?)(EC|$)/)?.[1] || "";
     const conciseInstructions = conciseSection
       .split("\n")
       .filter((line) => line.trim());

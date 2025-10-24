@@ -247,15 +247,16 @@ Be creative with your sentence structure and wording. Use varied, natural langua
 
 IMPORTANT: Use {{step_number}} format for ALL step counts in your response.
 
-Return response using these exact delimiters:
-STEPS_START
+Return response using these exact delimiters and also respond things after STEPS_END as it is:
+SSTART
 STEP: [step 1: full sentence using {{step_number}} format, e.g., "Walk forward {{8}} steps"]
 STEP: [step 2: full sentence using {{step_number}} format, e.g., "Turn right and walk forward {{27}} steps"]
 STEP: [step 3: full sentence using {{step_number}} format, e.g., "Move backward {{4}} steps to reach your destination"]
-STEPS_END
-CONCISE:
+SEND
+C:
 ${conciseInstructions.join("\n")}
-END_CONCISE`;
+EC
+`;
 
     console.log(prompt);
 
