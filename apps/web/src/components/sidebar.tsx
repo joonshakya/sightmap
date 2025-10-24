@@ -283,10 +283,6 @@ function InstructionsScreen({
 
   // Parse completion content with delimiters - incremental parsing
   const parseCompletionContent = (content: string) => {
-    const instruction = content
-      .match(/INSTRUCTION:\s*(.+?)(?=\nSTEPS_START|$)/)?.[1]
-      ?.trim();
-
     // Extract steps incrementally - don't wait for STEPS_END
     const stepsSection =
       content.match(/STEPS_START\s*\n([\s\S]*?)(STEPS_END|$)/)?.[1] ||
@@ -296,17 +292,27 @@ function InstructionsScreen({
       .filter((line) => line.startsWith("STEP:"))
       .map((line) => line.replace("STEP: ", "").trim());
 
-    return { instruction, steps };
+    // Extract concise instructions
+    const conciseSection =
+      content.match(/CONCISE:\s*\n([\s\S]*?)(END_CONCISE|$)/)?.[1] ||
+      "";
+    const conciseInstructions = conciseSection
+      .split("\n")
+      .filter((line) => line.trim());
+
+    return { steps, conciseInstructions };
   };
 
   const parsedData = parseCompletionContent(completion);
 
   const handleSaveInstructions = () => {
-    if (!parsedData.instruction || !parsedData.steps.length) return;
+    if (!parsedData.steps.length) return;
 
-    // Convert parsed data to instruction arrays
-    const descriptiveInstructions = [parsedData.instruction];
-    const conciseInstructions = parsedData.steps;
+    // Descriptive instructions: AI-generated full sentences (steps)
+    const descriptiveInstructions = parsedData.steps;
+
+    // Concise instructions: movement segments from AI response
+    const conciseInstructions = parsedData.conciseInstructions || [];
 
     saveInstructionsMutation.mutate({
       pathId,
@@ -314,9 +320,6 @@ function InstructionsScreen({
       conciseInstructions,
     });
   };
-
-  // Instruction uses plain numbers, no {{}} to replace
-  const adjustedInstruction = parsedData.instruction || "";
 
   // Apply step size adjustment to steps (parse {{step_number}} from text)
   const adjustedSteps = parsedData.steps.map((stepText) => {
@@ -342,6 +345,31 @@ function InstructionsScreen({
     );
   });
 
+  // Apply step size adjustment to concise instructions
+  const adjustedConciseInstructions =
+    parsedData.conciseInstructions?.map((conciseText) => {
+      // Extract step number from {{number}} format
+      const stepMatch = conciseText.match(/\{\{(\d+)\}\}/);
+      const stepNumber = stepMatch ? parseInt(stepMatch[1]) : 0;
+
+      const adjustedStepNumber = userSettings?.stepSize
+        ? Math.round(
+            stepNumber *
+              (userSettings.stepSize === "SMALL"
+                ? 1.4 // Small steps = more steps needed
+                : userSettings.stepSize === "LARGE"
+                ? 0.7 // Large steps = fewer steps needed
+                : 1.0) // Medium steps = normal
+          )
+        : stepNumber;
+
+      // Replace {{number}} with adjusted number
+      return conciseText.replace(
+        /\{\{(\d+)\}\}/,
+        adjustedStepNumber.toString()
+      );
+    }) || [];
+
   return (
     <div className="space-y-4">
       <Card>
@@ -359,27 +387,17 @@ function InstructionsScreen({
           <div className="space-y-4">
             {/* Instructions Display */}
             <div className="border border-gray-200 rounded-lg p-4 bg-white min-h-[200px]">
-              {!parsedData.instruction ? (
+              {!parsedData.steps.length ? (
                 <p className="text-sm text-gray-500">
                   Click "Generate Instructions" to create navigation
                   instructions for this path.
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {/* Main Instruction */}
+                  {/* Descriptive Instructions */}
                   <div>
                     <h4 className="font-semibold text-sm mb-2">
-                      Instruction:
-                    </h4>
-                    <p className="text-sm whitespace-pre-wrap">
-                      {adjustedInstruction}
-                    </p>
-                  </div>
-
-                  {/* Step Details */}
-                  <div>
-                    <h4 className="font-semibold text-sm mb-2">
-                      Steps:
+                      Descriptive Instructions:
                     </h4>
                     <div className="space-y-1">
                       {adjustedSteps.map((stepText, index) => (
@@ -388,8 +406,62 @@ function InstructionsScreen({
                           className="text-sm text-gray-700"
                         >
                           {index + 1}. {stepText}
+                          {isLoading &&
+                          index === adjustedSteps.length - 1 &&
+                          adjustedConciseInstructions.length === 0 ? (
+                            <span
+                              style={{
+                                fontSize: "1.0em",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              {" "}
+                              ●
+                            </span>
+                          ) : (
+                            ""
+                          )}
                         </div>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* Concise Instructions */}
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2">
+                      Concise Instructions:
+                    </h4>
+                    <div className="space-y-1">
+                      {adjustedConciseInstructions.map(
+                        (line, index) => (
+                          <div
+                            key={index}
+                            className="text-sm text-gray-700"
+                          >
+                            {line}
+                            {isLoading &&
+                            index ===
+                              adjustedConciseInstructions.length -
+                                1 ? (
+                              <span
+                                style={{
+                                  fontSize: "1.0em",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                {" "}
+                                ●
+                              </span>
+                            ) : (
+                              ""
+                            )}
+                          </div>
+                        )
+                      ) || (
+                        <div className="text-sm text-gray-500">
+                          No concise instructions available
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -420,24 +492,23 @@ function InstructionsScreen({
                 )}
               </Button>
 
-              {parsedData.instruction &&
-                parsedData.steps.length > 0 && (
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={handleSaveInstructions}
-                    disabled={saveInstructionsMutation.isPending}
-                  >
-                    {saveInstructionsMutation.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Saving...
-                      </>
-                    ) : (
-                      "Save Instructions"
-                    )}
-                  </Button>
-                )}
+              {parsedData.steps.length > 0 && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleSaveInstructions}
+                  disabled={saveInstructionsMutation.isPending}
+                >
+                  {saveInstructionsMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Instructions"
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
