@@ -336,11 +336,15 @@ function InstructionsScreen({
         )
       : stepNumber;
 
-    // Replace {{number}} with adjusted number
-    return stepText.replace(
+    // First replace {{number}} with adjusted number, then remove remaining unpaired { and }
+    let cleanedText = stepText.replace(
       /\{\{(\d+)\}\}/,
       adjustedStepNumber.toString()
     );
+    // Remove any remaining unpaired { and }
+    cleanedText = cleanedText.replace(/[{}]/g, "");
+
+    return cleanedText;
   });
 
   // Apply step size adjustment to concise instructions
@@ -361,11 +365,15 @@ function InstructionsScreen({
           )
         : stepNumber;
 
-      // Replace {{number}} with adjusted number
-      return conciseText.replace(
+      // First replace {{number}} with adjusted number, then remove remaining unpaired { and }
+      let cleanedText = conciseText.replace(
         /\{\{(\d+)\}\}/,
         adjustedStepNumber.toString()
       );
+      // Remove any remaining unpaired { and }
+      cleanedText = cleanedText.replace(/[{}]/g, "");
+
+      return cleanedText;
     }) || [];
 
   return (
