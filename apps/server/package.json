@@ -7,7 +7,9 @@
     "check-types": "tsc -b",
     "compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
     "dev": "bun run --hot --no-clear-screen src/index.ts",
-    "start": "bun run dist/index.js"
+    "start": "bun run dist/index.js",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "hono": "catalog:",

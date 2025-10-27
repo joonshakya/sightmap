@@ -22,12 +22,12 @@ const config: runtime.GetPrismaClientConfig = {
       "value": "prisma-client"
     },
     "output": {
-      "value": "/Users/joonshakya/Documents/Projects/FYP Sightmap/sightmap/packages/common/prisma",
+      "value": "/Users/aakashshrestha/Documents/sightmap/packages/common/prisma",
       "fromEnvVar": null
     },
     "config": {
-      "runtime": "bun",
       "moduleFormat": "esm",
+      "runtime": "bun",
       "engineType": "library"
     },
     "binaryTargets": [
@@ -38,7 +38,7 @@ const config: runtime.GetPrismaClientConfig = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "/Users/joonshakya/Documents/Projects/FYP Sightmap/sightmap/packages/db/prisma/schema/schema.prisma",
+    "sourceFilePath": "/Users/aakashshrestha/Documents/sightmap/packages/db/prisma/schema/schema.prisma",
     "isCustomOutput": true
   },
   "relativePath": "../../db/prisma/schema",
