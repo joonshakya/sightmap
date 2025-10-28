@@ -2,11 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 
 import { trpc, type RouterInputs } from "@/utils/trpc";
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DrawingCanvas from "@/components/drawing-canvas";
 import Sidebar from "@/components/sidebar";
 import { useState, useRef } from "react";
@@ -27,17 +23,11 @@ function RouteComponent() {
     width: 0,
     height: 0,
   });
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(
-    null
-  );
-  const [selectedPathId, setSelectedPathId] = useState<string | null>(
-    null
-  );
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
   const [mode, setMode] = useState<EditMode>("room");
 
-  const floorData = useQuery(
-    trpc.floor.getFloorData.queryOptions({ floorId })
-  );
+  const floorData = useQuery(trpc.floor.getFloorData.queryOptions({ floorId }));
 
   const updateRoomCoordinates = useMutation(
     trpc.floor.updateRoomCoordinates.mutationOptions({
@@ -113,9 +103,7 @@ function RouteComponent() {
     doorX?: number,
     doorY?: number
   ) => {
-    const roomNumber = `Room ${
-      (floorData.data?.rooms.length || 0) + 1
-    }`;
+    const roomNumber = `Room ${(floorData.data?.rooms.length || 0) + 1}`;
     createRoom.mutate({
       floorId,
       name: roomNumber,
@@ -172,9 +160,7 @@ function RouteComponent() {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-red-600 mb-2">
-            Error
-          </h2>
+          <h2 className="text-2xl font-bold text-red-600 mb-2">Error</h2>
           <p className="text-gray-600">Failed to load floor data</p>
         </div>
       </div>
@@ -184,7 +170,7 @@ function RouteComponent() {
   return (
     <div className="flex relative">
       {/* Dummy div to reserve space for the absolutely positioned sidebar */}
-      <div className="w-98 flex-shrink-0"></div>
+      <div className="w-[26rem] flex-shrink-0"></div>
       <Sidebar
         rooms={floorData.data?.rooms || []}
         selectedRoomId={selectedRoomId}
@@ -203,10 +189,7 @@ function RouteComponent() {
       <div
         className="flex-1"
         ref={(el) => {
-          if (
-            el &&
-            (!stageDimensions.width || !stageDimensions.height)
-          ) {
+          if (el && (!stageDimensions.width || !stageDimensions.height)) {
             setStageDimensions({
               width: el.clientWidth,
               height: el.clientHeight,

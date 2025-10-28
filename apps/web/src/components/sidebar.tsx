@@ -170,7 +170,7 @@ export default function Sidebar({
 
   return (
     <div
-      className={`w-96 bg-gray-50 border-r border-gray-200 h-full absolute overflow-y-auto ${className}`}
+      className={`w-[26rem] bg-gray-50 border-r border-gray-200 h-full absolute overflow-y-auto ${className}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
