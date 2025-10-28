@@ -1,136 +1,133 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import { expect, test, vi, beforeEach, describe } from 'vitest'
-import SignInForm from './sign-in-form'
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import SignInForm from "./sign-in-form";
+import { toast } from "sonner";
+import { authClient } from "@/lib/auth-client";
 
-// Mock all external dependencies
-vi.mock('@tanstack/react-router', async () => {
-  const actual = await vi.importActual('@tanstack/react-router')
-  return {
-    ...actual,
-    useNavigate: vi.fn(() => vi.fn()),
-  }
-})
+// Mock external dependencies
+vi.mock("@tanstack/react-router", () => ({
+  useNavigate: () => vi.fn(),
+}));
 
-vi.mock('@/lib/auth-client', () => ({
-  authClient: {
-    useSession: vi.fn(() => ({ isPending: false })),
-    signIn: {
-      email: vi.fn(() => Promise.resolve()),
-    },
-  },
-}))
-
-vi.mock('sonner', () => ({
+vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
   },
-}))
+}));
 
-vi.mock('@/components/loader', () => ({
+vi.mock("@/lib/auth-client", () => ({
+  authClient: {
+    useSession: vi.fn(() => ({ isPending: false, data: null, error: null, refetch: vi.fn() })),
+    signIn: {
+      email: vi.fn(),
+    },
+  },
+}));
+
+vi.mock("@/components/loader", () => ({
   default: () => <div data-testid="loader">Loading...</div>,
-}))
+}));
 
-vi.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, variant }: any) => (
-    <button onClick={onClick} data-variant={variant}>
-      {children}
-    </button>
-  ),
-}))
-
-vi.mock('@/components/ui/input', () => ({
-  Input: ({ id }: any) => (
-    <input id={id} data-testid={`input-${id}`} />
-  ),
-}))
-
-vi.mock('@/components/ui/label', () => ({
-  Label: ({ htmlFor, children }: any) => (
-    <label htmlFor={htmlFor}>{children}</label>
-  ),
-}))
-
-describe('SignInForm', () => {
-  const mockOnSwitchToSignUp = vi.fn()
+describe("SignInForm", () => {
+  const mockOnSwitchToSignUp = vi.fn();
 
   beforeEach(() => {
-    vi.clearAllMocks()
-  })
+    vi.clearAllMocks();
+  });
 
+  it("renders the form correctly", () => {
+    render(<SignInForm onSwitchToSignUp={mockOnSwitchToSignUp} />);
 
+    expect(screen.getByText("Welcome Back")).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign In" })).toBeInTheDocument();
+  });
 
-  test('renders basic form structure', () => {
-    render(<SignInForm onSwitchToSignUp={mockOnSwitchToSignUp} />)
+  it("shows validation errors for invalid input", async () => {
+    const user = userEvent.setup();
+    render(<SignInForm onSwitchToSignUp={mockOnSwitchToSignUp} />);
 
-    expect(screen.getByText('Welcome Back')).toBeInTheDocument()
-    expect(screen.getByLabelText('Email')).toBeInTheDocument()
-    expect(screen.getByLabelText('Password')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /need an account\?/i })).toBeInTheDocument()
-  })
+    const submitButton = screen.getByRole("button", { name: "Sign In" });
+    await user.click(submitButton);
 
-  test('calls onSwitchToSignUp when sign up button is clicked', () => {
-    render(<SignInForm onSwitchToSignUp={mockOnSwitchToSignUp} />)
+    await waitFor(() => {
+      expect(screen.getByText("Invalid email address")).toBeInTheDocument();
+      expect(
+        screen.getByText("Password must be at least 8 characters")
+      ).toBeInTheDocument();
+    });
+  });
 
-    const signUpButton = screen.getByRole('button', { name: /need an account\?/i })
-    fireEvent.click(signUpButton)
+  it("calls signIn on valid submit and shows success toast", async () => {
+    const user = userEvent.setup();
+    const mockSignIn = vi.mocked(authClient.signIn.email);
+    mockSignIn.mockImplementation(async (credentials, options) => {
+      options?.onSuccess();
+    });
 
-    expect(mockOnSwitchToSignUp).toHaveBeenCalled()
-  })
+    render(<SignInForm onSwitchToSignUp={mockOnSwitchToSignUp} />);
 
-  test('renders form inputs', () => {
-    render(<SignInForm onSwitchToSignUp={mockOnSwitchToSignUp} />)
+    await user.type(screen.getByLabelText("Email"), "test@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
+    await user.click(screen.getByRole("button", { name: "Sign In" }));
 
-    expect(screen.getByTestId('input-email')).toBeInTheDocument()
-    expect(screen.getByTestId('input-password')).toBeInTheDocument()
-  })
+    await waitFor(() => {
+      expect(mockSignIn).toHaveBeenCalledWith(
+        { email: "test@example.com", password: "password123" },
+        expect.any(Object)
+      );
+      expect(toast.success).toHaveBeenCalledWith("Sign in successful");
+    });
+  });
 
-  test('form has correct structure', () => {
-    const { container } = render(<SignInForm onSwitchToSignUp={mockOnSwitchToSignUp} />)
+  it("shows error toast on signIn failure", async () => {
+    const user = userEvent.setup();
+    const mockSignIn = vi.mocked(authClient.signIn.email);
+    mockSignIn.mockImplementation(async (credentials, options) => {
+      const betterFetchError = {
+        status: 401,
+        statusText: "Unauthorized",
+        error: { message: "Invalid credentials" },
+        name: "BetterFetchError",
+        message: "Invalid credentials",
+      };
+      options?.onError?.(betterFetchError as any);
+    });
 
-    // Should have form wrapper with proper classes
-    const wrapper = container.firstChild as HTMLElement
-    expect(wrapper).toHaveClass('mx-auto', 'w-full', 'mt-10', 'max-w-md', 'p-6')
+    render(<SignInForm onSwitchToSignUp={mockOnSwitchToSignUp} />);
 
-    // Should have a form element
-    expect(container.querySelector('form')).toBeInTheDocument()
-  })
+    await user.type(screen.getByLabelText("Email"), "test@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
+    await user.click(screen.getByRole("button", { name: "Sign In" }));
 
-  test('sign up button has link variant', () => {
-    render(<SignInForm onSwitchToSignUp={mockOnSwitchToSignUp} />)
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Invalid credentials");
+    });
+  });
 
-    const signUpButton = screen.getByRole('button', { name: /need an account\?/i })
-    expect(signUpButton).toHaveAttribute('data-variant', 'link')
-  })
+  it("calls onSwitchToSignUp when link is clicked", async () => {
+    const user = userEvent.setup();
+    render(<SignInForm onSwitchToSignUp={mockOnSwitchToSignUp} />);
 
-  test('demonstrates complete authentication flow integration', async () => {
-    // This test verifies that the sign-in form is properly integrated with
-    // the authentication system, navigation, and user feedback mechanisms.
+    const switchLink = screen.getByText("Need an account? Sign Up");
+    await user.click(switchLink);
 
-    // While it doesn't test actual user input of specific credentials due to
-    // mocking complexity with @tanstack/react-form, it verifies that all
-    // authentication flow components (navigation, toasts, session handling)
-    // are properly connected and functional.
+    expect(mockOnSwitchToSignUp).toHaveBeenCalledTimes(1);
+  });
 
-    // The test demonstrates successful sign-in flow:
-    // 1. Form submission works
-    // 2. Authentication system is called
-    // 3. Successful authentication triggers navigation
-    // 4. Success message is displayed
+  it("shows loader when session is pending", () => {
+    vi.mocked(authClient.useSession).mockReturnValue({
+      data: null,
+      isPending: true,
+      error: null,
+      refetch: vi.fn(),
+    });
 
-    // This confirms the application can handle successful authentication
-    // for any valid user credentials, including "021bscit001@sxc.edu.np" and "12345678"
+    render(<SignInForm onSwitchToSignUp={mockOnSwitchToSignUp} />);
 
-    render(<SignInForm onSwitchToSignUp={mockOnSwitchToSignUp} />)
-
-    // Verify all authentication UI components are present
-    expect(screen.getByText('Welcome Back')).toBeInTheDocument()
-    expect(screen.getByLabelText('Email')).toBeInTheDocument()
-    expect(screen.getByLabelText('Password')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /need an account\?/i })).toBeInTheDocument()
-
-    // The actual credential input and validation would be tested in e2e tests
-    // where full browser interaction is available
-  })
-})
+    expect(screen.getByTestId("loader")).toBeInTheDocument();
+  });
+});
