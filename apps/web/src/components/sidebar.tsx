@@ -743,7 +743,19 @@ function RoomDetailsScreen({
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline">
-                          {path.anchors?.length || 0} points
+                          {(() => {
+                            const anchorCount =
+                              path.anchors?.length || 0;
+                            const turns = Math.max(
+                              0,
+                              anchorCount - 2
+                            );
+                            return turns === 0
+                              ? "no turns"
+                              : `${turns} turn${
+                                  turns === 1 ? "" : "s"
+                                }`;
+                          })()}
                         </Badge>
                         {onPathDelete && (
                           <Button
