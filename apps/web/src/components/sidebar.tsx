@@ -15,7 +15,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowLeft,
@@ -28,23 +27,35 @@ import type { RouterOutputs } from "@/utils/trpc";
 import type { EditMode } from "@sightmap/common";
 import type { StepSize } from "@sightmap/common/prisma/enums";
 
-// Utility function to adjust steps based on user preference
-function adjustStepsForUser(
+// Helper function to adjust step numbers in instruction text
+function adjustInstructionText(
   text: string,
-  stepSize: StepSize
+  stepSize?: StepSize
 ): string {
+  if (!stepSize) return text;
+
   const multipliers: Record<StepSize, number> = {
-    SMALL: 0.7,
-    MEDIUM: 1.0,
-    LARGE: 1.3,
+    SMALL: 1.4, // Small steps = more steps needed
+    MEDIUM: 1.0, // Medium steps = normal
+    LARGE: 0.7, // Large steps = fewer steps needed
   };
 
-  return text.replace(/\{\{(\d+)\}\}/g, (match, stepNumber) => {
-    const adjusted = Math.round(
-      parseInt(stepNumber) * multipliers[stepSize]
-    );
-    return `{{${adjusted}}}`;
-  });
+  const stepMatch = text.match(/\{\{(\d+)\}\}/);
+  const stepNumber = stepMatch ? parseInt(stepMatch[1]) : 0;
+
+  const adjustedStepNumber = Math.round(
+    stepNumber * multipliers[stepSize]
+  );
+
+  // First replace {{number}} with adjusted number, then remove remaining unpaired { and }
+  let cleanedText = text.replace(
+    /\{\{(\d+)\}\}/,
+    adjustedStepNumber.toString()
+  );
+  // Remove any remaining unpaired { and }
+  cleanedText = cleanedText.replace(/[{}]/g, "");
+
+  return cleanedText;
 }
 
 type Room = RouterOutputs["floor"]["getFloorData"]["rooms"][number];
@@ -339,62 +350,16 @@ function InstructionsScreen({
     });
   };
 
-  // Apply step size adjustment to steps (parse {{step_number}} from text)
-  const adjustedSteps = parsedData.steps.map((stepText) => {
-    // Extract step number from {{number}} format
-    const stepMatch = stepText.match(/\{\{(\d+)\}\}/);
-    const stepNumber = stepMatch ? parseInt(stepMatch[1]) : 0;
-
-    const adjustedStepNumber = userSettings?.stepSize
-      ? Math.round(
-          stepNumber *
-            (userSettings.stepSize === "SMALL"
-              ? 1.4 // Small steps = more steps needed
-              : userSettings.stepSize === "LARGE"
-              ? 0.7 // Large steps = fewer steps needed
-              : 1.0) // Medium steps = normal
-        )
-      : stepNumber;
-
-    // First replace {{number}} with adjusted number, then remove remaining unpaired { and }
-    let cleanedText = stepText.replace(
-      /\{\{(\d+)\}\}/,
-      adjustedStepNumber.toString()
-    );
-    // Remove any remaining unpaired { and }
-    cleanedText = cleanedText.replace(/[{}]/g, "");
-
-    return cleanedText;
-  });
+  // Apply step size adjustment to steps
+  const adjustedSteps = parsedData.steps.map((stepText) =>
+    adjustInstructionText(stepText, userSettings?.stepSize)
+  );
 
   // Apply step size adjustment to concise instructions
   const adjustedConciseInstructions =
-    parsedData.conciseInstructions?.map((conciseText) => {
-      // Extract step number from {{number}} format
-      const stepMatch = conciseText.match(/\{\{(\d+)\}\}/);
-      const stepNumber = stepMatch ? parseInt(stepMatch[1]) : 0;
-
-      const adjustedStepNumber = userSettings?.stepSize
-        ? Math.round(
-            stepNumber *
-              (userSettings.stepSize === "SMALL"
-                ? 1.4 // Small steps = more steps needed
-                : userSettings.stepSize === "LARGE"
-                ? 0.7 // Large steps = fewer steps needed
-                : 1.0) // Medium steps = normal
-          )
-        : stepNumber;
-
-      // First replace {{number}} with adjusted number, then remove remaining unpaired { and }
-      let cleanedText = conciseText.replace(
-        /\{\{(\d+)\}\}/,
-        adjustedStepNumber.toString()
-      );
-      // Remove any remaining unpaired { and }
-      cleanedText = cleanedText.replace(/[{}]/g, "");
-
-      return cleanedText;
-    }) || [];
+    parsedData.conciseInstructions?.map((conciseText) =>
+      adjustInstructionText(conciseText, userSettings?.stepSize)
+    ) || [];
 
   // Check if path already has saved instructions
   const hasSavedInstructions =
@@ -404,14 +369,43 @@ function InstructionsScreen({
       (path.instructionSet.conciseInstructions &&
         path.instructionSet.conciseInstructions.length > 0));
 
-  // Use saved instructions if available, otherwise use generated ones
-  const displaySteps = hasSavedInstructions
-    ? path.instructionSet!.descriptiveInstructions || []
+  // Apply step size adjustment to saved instructions
+  const adjustedSavedSteps = hasSavedInstructions
+    ? (path.instructionSet!.descriptiveInstructions || []).map(
+        (stepText) =>
+          adjustInstructionText(stepText, userSettings?.stepSize)
+      )
+    : [];
+
+  const adjustedSavedConciseInstructions = hasSavedInstructions
+    ? (path.instructionSet!.conciseInstructions || []).map(
+        (conciseText) =>
+          adjustInstructionText(conciseText, userSettings?.stepSize)
+      )
+    : [];
+
+  // Use streaming content when loading, otherwise use saved instructions if available
+  const displaySteps = isLoading
+    ? adjustedSteps
+    : hasSavedInstructions
+    ? adjustedSavedSteps
     : adjustedSteps;
 
-  const displayConciseInstructions = hasSavedInstructions
-    ? path.instructionSet!.conciseInstructions || []
+  const displayConciseInstructions = isLoading
+    ? adjustedConciseInstructions
+    : hasSavedInstructions
+    ? adjustedSavedConciseInstructions
     : adjustedConciseInstructions;
+
+  // Check if current generated instructions are different from saved ones
+  const hasUnsavedChanges =
+    !isLoading &&
+    parsedData.steps.length > 0 &&
+    (!hasSavedInstructions ||
+      JSON.stringify(adjustedSteps) !==
+        JSON.stringify(adjustedSavedSteps) ||
+      JSON.stringify(adjustedConciseInstructions) !==
+        JSON.stringify(adjustedSavedConciseInstructions));
 
   return (
     <div className="space-y-4">
@@ -450,8 +444,7 @@ function InstructionsScreen({
                             className="text-sm text-gray-700"
                           >
                             {index + 1}. {stepText}
-                            {!hasSavedInstructions &&
-                            isLoading &&
+                            {isLoading &&
                             index === displaySteps.length - 1 &&
                             displayConciseInstructions.length ===
                               0 ? (
@@ -487,8 +480,7 @@ function InstructionsScreen({
                               className="text-sm text-gray-700"
                             >
                               {line}
-                              {!hasSavedInstructions &&
-                              isLoading &&
+                              {isLoading &&
                               index ===
                                 displayConciseInstructions.length -
                                   1 ? (
@@ -511,10 +503,12 @@ function InstructionsScreen({
                     </div>
                   )}
 
-                  {!hasSavedInstructions && isLoading && (
+                  {isLoading && (
                     <div className="flex items-center gap-2 text-sm text-gray-500 mt-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Generating instructions...
+                      {hasSavedInstructions
+                        ? "Regenerating instructions..."
+                        : "Generating instructions..."}
                     </div>
                   )}
                 </div>
@@ -558,24 +552,27 @@ function InstructionsScreen({
                 </Button>
               )}
 
-              {!hasSavedInstructions &&
-                parsedData.steps.length > 0 && (
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={handleSaveInstructions}
-                    disabled={saveInstructionsMutation.isPending}
-                  >
-                    {saveInstructionsMutation.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Saving...
-                      </>
-                    ) : (
-                      "Save Instructions"
-                    )}
-                  </Button>
-                )}
+              {hasUnsavedChanges && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleSaveInstructions}
+                  disabled={saveInstructionsMutation.isPending}
+                >
+                  {saveInstructionsMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      {hasSavedInstructions
+                        ? "Updating..."
+                        : "Saving..."}
+                    </>
+                  ) : hasSavedInstructions ? (
+                    "Update Instructions"
+                  ) : (
+                    "Save Instructions"
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
@@ -685,6 +682,11 @@ function RoomDetailsScreen({
   onPathCreateStart,
 }: RoomDetailsScreenProps) {
   const connectedPaths = getConnectedPaths(room);
+
+  // Fetch user settings for step size adjustment in previews
+  const { data: userSettings } = useQuery(
+    trpc.userSettings.get.queryOptions()
+  );
 
   return (
     <div className="space-y-4">
@@ -803,11 +805,14 @@ function RoomDetailsScreen({
                           <strong>Instructions:</strong>
                         </div>
                         <div className="text-xs">
-                          {path.instructionSet
-                            .descriptiveInstructions?.[0] ||
+                          {adjustInstructionText(
                             path.instructionSet
-                              .conciseInstructions?.[0] ||
-                            "No instructions available"}
+                              .descriptiveInstructions?.[0] ||
+                              path.instructionSet
+                                .conciseInstructions?.[0] ||
+                              "",
+                            userSettings?.stepSize
+                          ) || "No instructions available"}
                         </div>
                       </div>
                     )}
