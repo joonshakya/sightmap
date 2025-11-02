@@ -149,6 +149,11 @@ export default function Sidebar({
     onRoomSelect(null);
   };
 
+  const handleBackToDetails = () => {
+    setCurrentScreen("details");
+    onPathSelect(null);
+  };
+
   const handleNameChange = (newName: string) => {
     if (!selectedRoom) return;
     // Update the cache directly
@@ -192,11 +197,16 @@ export default function Sidebar({
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center gap-2 flex-1">
-          {currentScreen === "details" && (
+          {(currentScreen === "details" ||
+            currentScreen === "instructions") && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleBackToRooms}
+              onClick={
+                currentScreen === "details"
+                  ? handleBackToRooms
+                  : handleBackToDetails
+              }
               className="p-1 flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -204,6 +214,23 @@ export default function Sidebar({
           )}
           {currentScreen === "rooms" ? (
             <h2 className="text-lg font-semibold">Rooms</h2>
+          ) : currentScreen === "instructions" && selectedPathId ? (
+            (() => {
+              const selectedPath = findPathById(
+                rooms,
+                selectedPathId
+              );
+              return selectedPath ? (
+                <h2 className="text-lg font-semibold">
+                  {selectedPath.fromRoom.name} →{" "}
+                  {selectedPath.toRoom.name}
+                </h2>
+              ) : (
+                <h2 className="text-lg font-semibold">
+                  Path Instructions
+                </h2>
+              );
+            })()
           ) : selectedRoom ? (
             <Textarea
               ref={textareaRef}
@@ -404,14 +431,9 @@ function InstructionsScreen({
     <div className="space-y-4">
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={onBack}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <CardTitle className="text-base">
-              Path Instructions
-            </CardTitle>
-          </div>
+          <CardTitle className="text-base">
+            Path Instructions
+          </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-4">
@@ -604,7 +626,7 @@ function RoomListScreen({
               className="cursor-pointer transition-colors hover:bg-gray-100"
               onClick={() => onRoomClick(room)}
             >
-              <CardContent className="p-3">
+              <CardContent className="px-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-medium">{room.name}</h3>
@@ -800,8 +822,8 @@ function RoomDetailsScreen({
 
       {/* Delete Room */}
       {onRoomDelete && (
-        <Card className="border-red-200">
-          <CardContent className="pt-6">
+        <Card className="border-red-200 gap-0 py-3">
+          <CardContent>
             <Button
               variant="destructive"
               onClick={() => onRoomDelete(room.id)}
