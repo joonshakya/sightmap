@@ -67,6 +67,16 @@ interface SidebarProps {
 
 type Screen = "rooms" | "details" | "instructions";
 
+const findPathById = (rooms: Room[], pathId: string) => {
+  for (const room of rooms) {
+    const fromPath = room.fromPaths.find((p) => p.id === pathId);
+    if (fromPath) return fromPath;
+    const toPath = room.toPaths.find((p) => p.id === pathId);
+    if (toPath) return toPath;
+  }
+  return null;
+};
+
 const getConnectedPaths = (room: Room) => {
   const fromPaths = room.fromPaths || [];
   const toPaths = room.toPaths || [];
@@ -225,13 +235,18 @@ export default function Sidebar({
             onPathCreateStart={onPathCreateStart}
           />
         ) : currentScreen === "instructions" && selectedPathId ? (
-          <InstructionsScreen
-            pathId={selectedPathId}
-            onBack={() => {
-              setCurrentScreen("details");
-              onPathSelect(null);
-            }}
-          />
+          (() => {
+            const selectedPath = findPathById(rooms, selectedPathId);
+            return selectedPath ? (
+              <InstructionsScreen
+                path={selectedPath}
+                onBack={() => {
+                  setCurrentScreen("details");
+                  onPathSelect(null);
+                }}
+              />
+            ) : null;
+          })()
         ) : null}
       </div>
     </div>
@@ -239,7 +254,7 @@ export default function Sidebar({
 }
 
 interface InstructionsScreenProps {
-  pathId: string;
+  path: Path;
   onBack: () => void;
 }
 
@@ -253,7 +268,7 @@ interface InstructionResponse {
 }
 
 function InstructionsScreen({
-  pathId,
+  path,
   onBack,
 }: InstructionsScreenProps) {
   const { completion, complete, isLoading } = useCompletion({
@@ -268,8 +283,13 @@ function InstructionsScreen({
   // Save instructions mutation
   const saveInstructionsMutation = useMutation(
     trpc.floor.saveInstructions.mutationOptions({
-      onSuccess: () => {
+      onSuccess(data, variables, onMutateResult, context) {
         toast.success("Instructions saved successfully!");
+        context.client.invalidateQueries({
+          queryKey: trpc.floor.getFloorData.queryKey({
+            floorId: path.fromRoom.floorId,
+          }),
+        });
       },
       onError: (error) => {
         toast.error("Failed to save instructions: " + error.message);
@@ -278,7 +298,7 @@ function InstructionsScreen({
   );
 
   const handleGenerateInstructions = () => {
-    complete(JSON.stringify({ pathId }));
+    complete(JSON.stringify({ pathId: path.id }));
   };
 
   // Parse completion content with delimiters - incremental parsing
@@ -313,7 +333,7 @@ function InstructionsScreen({
     const conciseInstructions = parsedData.conciseInstructions || [];
 
     saveInstructionsMutation.mutate({
-      pathId,
+      pathId: path.id,
       descriptiveInstructions,
       conciseInstructions,
     });
@@ -376,6 +396,23 @@ function InstructionsScreen({
       return cleanedText;
     }) || [];
 
+  // Check if path already has saved instructions
+  const hasSavedInstructions =
+    path.instructionSet &&
+    ((path.instructionSet.descriptiveInstructions &&
+      path.instructionSet.descriptiveInstructions.length > 0) ||
+      (path.instructionSet.conciseInstructions &&
+        path.instructionSet.conciseInstructions.length > 0));
+
+  // Use saved instructions if available, otherwise use generated ones
+  const displaySteps = hasSavedInstructions
+    ? path.instructionSet!.descriptiveInstructions || []
+    : adjustedSteps;
+
+  const displayConciseInstructions = hasSavedInstructions
+    ? path.instructionSet!.conciseInstructions || []
+    : adjustedConciseInstructions;
+
   return (
     <div className="space-y-4">
       <Card>
@@ -393,7 +430,7 @@ function InstructionsScreen({
           <div className="space-y-4">
             {/* Instructions Display */}
             <div className="border border-gray-200 rounded-lg p-4 bg-white min-h-[200px]">
-              {!parsedData.steps.length ? (
+              {!hasSavedInstructions && !parsedData.steps.length ? (
                 <p className="text-sm text-gray-500">
                   Click "Generate Instructions" to create navigation
                   instructions for this path.
@@ -401,54 +438,23 @@ function InstructionsScreen({
               ) : (
                 <div className="space-y-4">
                   {/* Descriptive Instructions */}
-                  <div>
-                    <h4 className="font-semibold text-sm mb-2">
-                      Descriptive Instructions:
-                    </h4>
-                    <div className="space-y-1">
-                      {adjustedSteps.map((stepText, index) => (
-                        <div
-                          key={index}
-                          className="text-sm text-gray-700"
-                        >
-                          {index + 1}. {stepText}
-                          {isLoading &&
-                          index === adjustedSteps.length - 1 &&
-                          adjustedConciseInstructions.length === 0 ? (
-                            <span
-                              style={{
-                                fontSize: "1.0em",
-                                fontWeight: "bold",
-                              }}
-                            >
-                              {" "}
-                              ●
-                            </span>
-                          ) : (
-                            ""
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Concise Instructions */}
-                  <div>
-                    <h4 className="font-semibold text-sm mb-2">
-                      Concise Instructions:
-                    </h4>
-                    <div className="space-y-1">
-                      {adjustedConciseInstructions.map(
-                        (line, index) => (
+                  {displaySteps.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2">
+                        Descriptive Instructions:
+                      </h4>
+                      <div className="space-y-1">
+                        {displaySteps.map((stepText, index) => (
                           <div
                             key={index}
                             className="text-sm text-gray-700"
                           >
-                            {line}
-                            {isLoading &&
-                            index ===
-                              adjustedConciseInstructions.length -
-                                1 ? (
+                            {index + 1}. {stepText}
+                            {!hasSavedInstructions &&
+                            isLoading &&
+                            index === displaySteps.length - 1 &&
+                            displayConciseInstructions.length ===
+                              0 ? (
                               <span
                                 style={{
                                   fontSize: "1.0em",
@@ -462,16 +468,50 @@ function InstructionsScreen({
                               ""
                             )}
                           </div>
-                        )
-                      ) || (
-                        <div className="text-sm text-gray-500">
-                          No concise instructions available
-                        </div>
-                      )}
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {isLoading && (
+                  {/* Concise Instructions */}
+                  {displayConciseInstructions.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2">
+                        Concise Instructions:
+                      </h4>
+                      <div className="space-y-1">
+                        {displayConciseInstructions.map(
+                          (line, index) => (
+                            <div
+                              key={index}
+                              className="text-sm text-gray-700"
+                            >
+                              {line}
+                              {!hasSavedInstructions &&
+                              isLoading &&
+                              index ===
+                                displayConciseInstructions.length -
+                                  1 ? (
+                                <span
+                                  style={{
+                                    fontSize: "1.0em",
+                                    fontWeight: "bold",
+                                  }}
+                                >
+                                  {" "}
+                                  ●
+                                </span>
+                              ) : (
+                                ""
+                              )}
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {!hasSavedInstructions && isLoading && (
                     <div className="flex items-center gap-2 text-sm text-gray-500 mt-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Generating instructions...
@@ -483,38 +523,59 @@ function InstructionsScreen({
 
             {/* Action Buttons */}
             <div className="space-y-2">
-              <Button
-                className="w-full"
-                onClick={handleGenerateInstructions}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Generating...
-                  </>
-                ) : (
-                  "Generate Instructions"
-                )}
-              </Button>
-
-              {parsedData.steps.length > 0 && (
+              {!hasSavedInstructions && (
                 <Button
-                  variant="outline"
                   className="w-full"
-                  onClick={handleSaveInstructions}
-                  disabled={saveInstructionsMutation.isPending}
+                  onClick={handleGenerateInstructions}
+                  disabled={isLoading}
                 >
-                  {saveInstructionsMutation.isPending ? (
+                  {isLoading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Saving...
+                      Generating...
                     </>
                   ) : (
-                    "Save Instructions"
+                    "Generate Instructions"
                   )}
                 </Button>
               )}
+
+              {hasSavedInstructions && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleGenerateInstructions}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Regenerating...
+                    </>
+                  ) : (
+                    "Regenerate Instructions"
+                  )}
+                </Button>
+              )}
+
+              {!hasSavedInstructions &&
+                parsedData.steps.length > 0 && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleSaveInstructions}
+                    disabled={saveInstructionsMutation.isPending}
+                  >
+                    {saveInstructionsMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Instructions"
+                    )}
+                  </Button>
+                )}
             </div>
           </div>
         </CardContent>
