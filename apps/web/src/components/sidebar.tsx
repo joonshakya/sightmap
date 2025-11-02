@@ -749,7 +749,7 @@ function RoomDetailsScreen({
                       onPathSelect && onPathSelect(path.id)
                     }
                   >
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Badge
                           variant={
@@ -796,7 +796,7 @@ function RoomDetailsScreen({
                     </div>
 
                     {path.instructionSet && (
-                      <div className="space-y-1">
+                      <div className="space-y-1 mt-2">
                         <div className="text-xs text-gray-600">
                           <strong>Instructions:</strong>
                         </div>
