@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Save } from "lucide-react";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type { RouterInputs, RouterOutputs } from "@/utils/trpc";
-import type { EditMode } from "@sightmap/common";
 
 // Types
 type Room = RouterOutputs["floor"]["getFloorData"]["rooms"][number];
@@ -600,9 +599,9 @@ const RoomComponent = ({
   gridSize,
   onDragEnd,
   onClick,
-  mode,
   isPathSource = false,
   isPathDestination = false,
+  hasPaths = false,
 }: {
   room: RenderableRoom;
   isPending?: boolean;
@@ -610,9 +609,9 @@ const RoomComponent = ({
   gridSize: number;
   onDragEnd: (e: KonvaEventObject<DragEvent>) => void;
   onClick: () => void;
-  mode: EditMode;
   isPathSource?: boolean;
   isPathDestination?: boolean;
+  hasPaths?: boolean;
 }) => {
   const isSelected = selectedRoomId === room.id;
   const wallFill = isPending
@@ -644,7 +643,7 @@ const RoomComponent = ({
     <Group
       x={room.x}
       y={room.y}
-      draggable={mode === "room"} // Only draggable in room mode
+      draggable={!hasPaths} // Only draggable if room has no paths
       onDragEnd={onDragEnd}
       onClick={onClick}
     >
@@ -741,34 +740,33 @@ const DrawingPreview = ({
 // Path visualization component
 const PathVisualization = ({
   paths,
-  mode,
-  sourceRoomId,
   selectedRoomId,
-  opacity = 1,
+  selectedPathId,
   gridSize,
 }: {
   paths: Room["fromPaths"];
-  mode: EditMode;
-  sourceRoomId: string | null;
   selectedRoomId: string | null;
-  opacity?: number;
+  selectedPathId: string | null;
   gridSize: number;
 }) => {
-  if (mode !== "path") return null;
-
   return (
-    <Group opacity={opacity}>
+    <Group>
       {paths.map((path) => {
-        // Calculate path-specific opacity based on room selection
-        let pathOpacity = 0.2; // Low opacity by default
+        // Calculate path-specific opacity based on room/path selection
+        let pathOpacity = 0.1; // Very faint by default
 
-        if (selectedRoomId) {
+        if (selectedPathId === path.id) {
+          pathOpacity = 1.0; // Full opacity for selected path
+        } else if (selectedPathId) {
+          // If a specific path is selected, keep all others faint
+          pathOpacity = 0.1;
+        } else if (selectedRoomId) {
           // If a room is selected, check if this path connects to it
           if (
             path.fromRoomId === selectedRoomId ||
             path.toRoomId === selectedRoomId
           ) {
-            pathOpacity = 1.0; // High opacity for connected paths
+            pathOpacity = 0.6; // Higher opacity for connected paths
           }
         }
 
@@ -898,6 +896,7 @@ const DrawingCanvas = forwardRef<
     stageDimensions: { width: number; height: number };
     rooms: Room[];
     selectedRoomId: string | null;
+    selectedPathId: string | null;
     onRoomSelect: (roomId: string | null) => void;
     onRoomUpdate: (
       input: RouterInputs["floor"]["updateRoomCoordinates"]
@@ -912,7 +911,6 @@ const DrawingCanvas = forwardRef<
     ) => void;
     onRoomDelete?: (roomId: string) => void;
     gridSize?: number;
-    mode: EditMode;
     onPathCreate?: (
       fromRoomId: string,
       toRoomId: string,
@@ -926,12 +924,12 @@ const DrawingCanvas = forwardRef<
       stageDimensions,
       rooms,
       selectedRoomId,
+      selectedPathId,
       onRoomSelect,
       onRoomUpdate,
       onRoomCreate,
       onRoomDelete,
       gridSize = DEFAULT_CONFIG.gridSize,
-      mode,
       onPathCreate,
       onPathCreateStart,
     },
@@ -1017,15 +1015,6 @@ const DrawingCanvas = forwardRef<
       handleTouchEnd,
     } = usePanZoom(config);
 
-    // Handle path creation start from sidebar
-    useEffect(() => {
-      if (onPathCreateStart && selectedRoomId && mode === "path") {
-        // This effect runs when selectedRoomId changes and we're in path mode
-        // We don't need to do anything here - the sidebar will call onPathCreateStart
-        // when the button is clicked, which will be handled by the parent component
-      }
-    }, [selectedRoomId, mode, onPathCreateStart]);
-
     // Keyboard event handling for delete
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -1093,35 +1082,47 @@ const DrawingCanvas = forwardRef<
       // Convert to world coordinates by accounting for Group transformation
       const worldPos = screenToWorld(pos, panX, panY, zoom);
 
-      if (mode === "path") {
-        // Path mode logic
+      // Check if we're in path creation mode
+      if (pathState.stage !== "idle") {
         handlePathMouseDown(worldPos);
-      } else {
-        // Room mode logic
-        // Find clicked room (saved or pending) on border
-        const clickedRoom = [...rooms, ...pendingRooms].find((room) =>
-          isOnRoomBorder(worldPos, room, gridSize)
-        );
+        return;
+      }
 
-        if (clickedRoom) {
-          // Clicked on wall border - set door position
+      // Find clicked room (saved or pending) on border
+      const clickedRoom = [...rooms, ...pendingRooms].find((room) =>
+        isOnRoomBorder(worldPos, room, gridSize)
+      );
+
+      if (clickedRoom) {
+        // Check if room has paths - if so, don't allow door editing
+        const hasPaths =
+          "fromPaths" in clickedRoom &&
+          "toPaths" in clickedRoom &&
+          Array.isArray(clickedRoom.fromPaths) &&
+          Array.isArray(clickedRoom.toPaths)
+            ? clickedRoom.fromPaths.length > 0 ||
+              clickedRoom.toPaths.length > 0
+            : false;
+
+        if (!hasPaths) {
+          // Clicked on wall border - set door position (only if no paths)
           updateRoomDoor(clickedRoom, worldPos, gridSize);
-          onRoomSelect(clickedRoom.id);
-          return;
         }
+        onRoomSelect(clickedRoom.id);
+        return;
+      }
 
-        // Find clicked room interior
-        const clickedRoomInterior = [...rooms, ...pendingRooms].find(
-          (room) => isInRoomInterior(worldPos, room)
-        );
+      // Find clicked room interior
+      const clickedRoomInterior = [...rooms, ...pendingRooms].find(
+        (room) => isInRoomInterior(worldPos, room)
+      );
 
-        if (clickedRoomInterior) {
-          onRoomSelect(clickedRoomInterior.id);
-        } else {
-          // Start drawing new room
-          startDrawing(worldPos);
-          onRoomSelect(null);
-        }
+      if (clickedRoomInterior) {
+        onRoomSelect(clickedRoomInterior.id);
+      } else {
+        // Start drawing new room
+        startDrawing(worldPos);
+        onRoomSelect(null);
       }
     };
 
@@ -1374,10 +1375,13 @@ const DrawingCanvas = forwardRef<
                       handleRoomDragEndWrapper(e, room)
                     }
                     onClick={() => onRoomSelect(room.id)}
-                    mode={mode}
                     isPathSource={pathState.sourceRoomId === room.id}
                     isPathDestination={
                       pathState.destinationRoomId === room.id
+                    }
+                    hasPaths={
+                      room.fromPaths.length > 0 ||
+                      room.toPaths.length > 0
                     }
                   />
                 ))}
@@ -1394,30 +1398,20 @@ const DrawingCanvas = forwardRef<
                       handlePendingRoomDragEndWrapper(e, room)
                     }
                     onClick={() => onRoomSelect(room.id)}
-                    mode={mode}
+                    hasPaths={false}
                   />
                 ))}
 
                 {/* Path visualization */}
-                {mode === "path" &&
-                  rooms.map((room) => (
-                    <PathVisualization
-                      key={`paths-${room.id}`}
-                      paths={room.fromPaths}
-                      mode={mode}
-                      sourceRoomId={pathState.sourceRoomId}
-                      selectedRoomId={selectedRoomId}
-                      gridSize={gridSize}
-                      opacity={
-                        (pathState.stage === "drawing_path" ||
-                          pathState.stage ===
-                            "selecting_destination") &&
-                        pathState.sourceRoomId === room.id
-                          ? 0.3
-                          : 1
-                      }
-                    />
-                  ))}
+                {rooms.map((room) => (
+                  <PathVisualization
+                    key={`paths-${room.id}`}
+                    paths={room.fromPaths}
+                    selectedRoomId={selectedRoomId}
+                    selectedPathId={selectedPathId}
+                    gridSize={gridSize}
+                  />
+                ))}
 
                 {/* Path creation preview */}
                 {pathState.stage === "drawing_path" &&

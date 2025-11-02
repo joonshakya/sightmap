@@ -2,11 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 
 import { trpc, type RouterInputs } from "@/utils/trpc";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import DrawingCanvas from "@/components/drawing-canvas";
 import Sidebar from "@/components/sidebar";
 import { useState, useRef } from "react";
-import type { EditMode } from "@sightmap/common";
 
 export const Route = createFileRoute("/floors/$floorId")({
   component: RouteComponent,
@@ -23,11 +26,16 @@ function RouteComponent() {
     width: 0,
     height: 0,
   });
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
-  const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
-  const [mode, setMode] = useState<EditMode>("room");
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(
+    null
+  );
+  const [selectedPathId, setSelectedPathId] = useState<string | null>(
+    null
+  );
 
-  const floorData = useQuery(trpc.floor.getFloorData.queryOptions({ floorId }));
+  const floorData = useQuery(
+    trpc.floor.getFloorData.queryOptions({ floorId })
+  );
 
   const updateRoomCoordinates = useMutation(
     trpc.floor.updateRoomCoordinates.mutationOptions({
@@ -103,7 +111,9 @@ function RouteComponent() {
     doorX?: number,
     doorY?: number
   ) => {
-    const roomNumber = `Room ${(floorData.data?.rooms.length || 0) + 1}`;
+    const roomNumber = `Room ${
+      (floorData.data?.rooms.length || 0) + 1
+    }`;
     createRoom.mutate({
       floorId,
       name: roomNumber,
@@ -160,7 +170,9 @@ function RouteComponent() {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-red-600 mb-2">Error</h2>
+          <h2 className="text-2xl font-bold text-red-600 mb-2">
+            Error
+          </h2>
           <p className="text-gray-600">Failed to load floor data</p>
         </div>
       </div>
@@ -182,14 +194,15 @@ function RouteComponent() {
         }}
         onRoomDelete={handleRoomDelete}
         onPathDelete={handlePathDelete}
-        mode={mode}
-        onModeChange={setMode}
         onPathCreateStart={handlePathCreateStart}
       />
       <div
         className="flex-1"
         ref={(el) => {
-          if (el && (!stageDimensions.width || !stageDimensions.height)) {
+          if (
+            el &&
+            (!stageDimensions.width || !stageDimensions.height)
+          ) {
             setStageDimensions({
               width: el.clientWidth,
               height: el.clientHeight,
@@ -203,12 +216,12 @@ function RouteComponent() {
             stageDimensions={stageDimensions}
             rooms={floorData.data?.rooms || []}
             selectedRoomId={selectedRoomId}
+            selectedPathId={selectedPathId}
             onRoomSelect={setSelectedRoomId}
             onRoomUpdate={handleRoomUpdate}
             onRoomCreate={handleRoomCreate}
             onRoomDelete={handleRoomDelete}
             gridSize={20}
-            mode={mode}
             onPathCreate={handlePathCreate}
           />
         ) : null}

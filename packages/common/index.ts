@@ -1,5 +1,3 @@
-export type EditMode = "room" | "path";
-
 export function toTitleCase(str: string) {
   // replace underscores with spaces
   return str

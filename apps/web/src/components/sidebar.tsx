@@ -24,7 +24,7 @@ import {
   Loader2,
 } from "lucide-react";
 import type { RouterOutputs } from "@/utils/trpc";
-import type { EditMode } from "@sightmap/common";
+
 import type { StepSize } from "@sightmap/common/prisma/enums";
 
 // Helper function to adjust step numbers in instruction text
@@ -70,8 +70,6 @@ interface SidebarProps {
   onRoomNameUpdate: (roomId: string, name: string) => void;
   onRoomDelete?: (roomId: string) => void;
   onPathDelete?: (pathId: string) => void;
-  mode: EditMode;
-  onModeChange: (mode: EditMode) => void;
   onPathCreateStart?: (sourceRoomId: string) => void;
   className?: string;
 }
@@ -103,8 +101,6 @@ export default function Sidebar({
   onRoomNameUpdate,
   onRoomDelete,
   onPathDelete,
-  mode,
-  onModeChange,
   onPathCreateStart,
   className = "",
 }: SidebarProps) {
@@ -230,8 +226,6 @@ export default function Sidebar({
             rooms={rooms}
             selectedRoomId={selectedRoomId}
             onRoomClick={handleRoomClick}
-            mode={mode}
-            onModeChange={onModeChange}
           />
         ) : currentScreen === "details" && selectedRoom ? (
           <RoomDetailsScreen
@@ -242,7 +236,6 @@ export default function Sidebar({
             }}
             onRoomDelete={onRoomDelete}
             onPathDelete={onPathDelete}
-            mode={mode}
             onPathCreateStart={onPathCreateStart}
           />
         ) : currentScreen === "instructions" && selectedPathId ? (
@@ -591,41 +584,9 @@ function RoomListScreen({
   rooms,
   selectedRoomId,
   onRoomClick,
-  mode,
-  onModeChange,
-}: RoomListScreenProps & {
-  mode: EditMode;
-  onModeChange: (mode: EditMode) => void;
-}) {
+}: RoomListScreenProps) {
   return (
     <div className="space-y-4">
-      {/* Mode Toggle */}
-      <Card>
-        <CardContent className="p-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Edit Mode</span>
-            <div className="flex gap-1">
-              <Button
-                variant={mode === "room" ? "default" : "outline"}
-                size="sm"
-                onClick={() => onModeChange("room")}
-                className="text-xs"
-              >
-                Room
-              </Button>
-              <Button
-                variant={mode === "path" ? "default" : "outline"}
-                size="sm"
-                onClick={() => onModeChange("path")}
-                className="text-xs"
-              >
-                Path
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Rooms List */}
       <div className="space-y-2">
         {rooms.length === 0 ? (
@@ -669,7 +630,6 @@ interface RoomDetailsScreenProps {
   onPathSelect?: (pathId: string) => void;
   onRoomDelete?: (roomId: string) => void;
   onPathDelete?: (pathId: string) => void;
-  mode?: EditMode;
   onPathCreateStart?: (sourceRoomId: string) => void;
 }
 
@@ -678,7 +638,6 @@ function RoomDetailsScreen({
   onPathSelect,
   onRoomDelete,
   onPathDelete,
-  mode,
   onPathCreateStart,
 }: RoomDetailsScreenProps) {
   const connectedPaths = getConnectedPaths(room);
@@ -729,7 +688,7 @@ function RoomDetailsScreen({
               <Route className="h-4 w-4" />
               Connected Paths ({connectedPaths.length})
             </CardTitle>
-            {mode === "path" && onPathCreateStart && (
+            {onPathCreateStart && (
               <Button
                 variant="outline"
                 size="sm"
