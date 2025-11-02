@@ -1252,7 +1252,6 @@ const DrawingCanvas = forwardRef<
                   destinationRoomId: null,
                   currentPoints: [],
                 });
-                onRoomSelect(null);
               } else {
                 // Add waypoint and continue drawing
                 setPathState((prev) => ({
