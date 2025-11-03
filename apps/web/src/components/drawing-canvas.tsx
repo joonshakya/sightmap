@@ -1289,6 +1289,7 @@ const DrawingCanvas = forwardRef<
                 };
                 setPathState(completedState);
                 onPathStateChange?.(completedState.stage);
+                onRoomSelect(pathState.sourceRoomId);
               } else {
                 // Add waypoint and continue drawing
                 setPathState((prev) => ({
