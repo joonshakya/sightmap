@@ -72,7 +72,7 @@ const DEFAULT_CONFIG: DrawingCanvasConfig = {
   gridSize: 20,
   zoomLimits: { min: 0.1, max: 5 },
   panStepSize: 20,
-  zoomStepSize: 0.1,
+  zoomStepSize: 0.03,
   touchpadPinchThreshold: 100,
 };
 
