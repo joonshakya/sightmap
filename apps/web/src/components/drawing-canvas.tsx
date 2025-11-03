@@ -1187,7 +1187,7 @@ const DrawingCanvas = forwardRef<
             }
           }
         } else if (pathCreationState === "drawing_path") {
-          // Drawing path - check if clicked on destination door
+          // Drawing path - check if orthogonal prediction is close to destination door
           const destRoom = rooms.find(
             (room) => room.id === pathDestinationRoomId
           );
@@ -1195,22 +1195,34 @@ const DrawingCanvas = forwardRef<
           if (
             destRoom &&
             destRoom.doorX !== null &&
-            destRoom.doorY !== null
+            destRoom.doorY !== null &&
+            currentPathPoints.length > 0
           ) {
-            // Check if clicked position is close to destination door
+            const lastPoint =
+              currentPathPoints[currentPathPoints.length - 1];
+            const orthogonalPos = getOrthogonalPrediction(
+              lastPoint,
+              worldPos,
+              gridSize
+            );
+
+            // Check if orthogonal prediction is close to destination door
             const doorPos = {
               x: destRoom.x + destRoom.doorX,
               y: destRoom.y + destRoom.doorY,
             };
 
             const distanceToDoor = Math.sqrt(
-              Math.pow(snappedPos.x - doorPos.x, 2) +
-                Math.pow(snappedPos.y - doorPos.y, 2)
+              Math.pow(orthogonalPos.x - doorPos.x, 2) +
+                Math.pow(orthogonalPos.y - doorPos.y, 2)
             );
 
             if (distanceToDoor < gridSize) {
-              // Clicked on destination door - complete path
-              const finalPoints = [...currentPathPoints, snappedPos];
+              // Orthogonal prediction is close to destination door - complete path
+              const finalPoints = [
+                ...currentPathPoints,
+                snapToGridCenter(doorPos, gridSize),
+              ];
               if (onPathCreate && selectedRoomId) {
                 onPathCreate(
                   selectedRoomId,
@@ -1226,7 +1238,7 @@ const DrawingCanvas = forwardRef<
             }
           }
 
-          // Not clicking on destination door - add waypoint
+          // Orthogonal prediction not close to destination door - add waypoint
           if (currentPathPoints.length > 0) {
             const lastPoint =
               currentPathPoints[currentPathPoints.length - 1];
