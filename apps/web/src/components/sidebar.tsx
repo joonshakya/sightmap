@@ -272,7 +272,7 @@ export default function Sidebar({
       </div>
 
       {/* Content */}
-      <div className="p-4">
+      <div className="flex-1 flex flex-col p-4">
         {pathCreationState === "selecting_destination" ? (
           <PathCreationNoticeScreen
             message="Choose a destination room"
@@ -699,29 +699,21 @@ function PathCreationNoticeScreen({
   onUndo,
 }: PathCreationNoticeScreenProps) {
   return (
-    <div className="space-y-4">
-      <Card>
+    <div className="h-full flex items-start justify-center pt-8">
+      <Card className="max-w-sm">
         <CardContent className="pt-6">
           <div className="text-center space-y-4">
             <div className="text-lg font-medium text-gray-900">
               {message}
             </div>
-            <div className="space-y-2">
+            <div className="flex gap-2 justify-center">
               {onUndo && (
-                <Button
-                  variant="outline"
-                  onClick={onUndo}
-                  className="w-full"
-                >
+                <Button variant="outline" onClick={onUndo}>
                   Undo Last Point
                 </Button>
               )}
               {onCancel && (
-                <Button
-                  variant="outline"
-                  onClick={onCancel}
-                  className="w-full"
-                >
+                <Button variant="outline" onClick={onCancel}>
                   Cancel
                 </Button>
               )}
