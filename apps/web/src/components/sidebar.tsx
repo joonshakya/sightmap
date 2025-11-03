@@ -61,6 +61,8 @@ function adjustInstructionText(
 type Room = RouterOutputs["floor"]["getFloorData"]["rooms"][number];
 type Path = Room["fromPaths"][number];
 
+type Position = { x: number; y: number };
+
 interface SidebarProps {
   rooms: Room[];
   selectedRoomId: string | null;
@@ -76,6 +78,8 @@ interface SidebarProps {
     | "selecting_destination"
     | "drawing_path";
   onPathCreateCancel?: () => void;
+  currentPathPoints?: Position[];
+  onUndoLastPoint?: () => void;
   className?: string;
 }
 
@@ -109,6 +113,8 @@ export default function Sidebar({
   onPathCreateStart,
   pathCreationState = "idle",
   onPathCreateCancel,
+  currentPathPoints = [],
+  onUndoLastPoint,
   className = "",
 }: SidebarProps) {
   const [currentScreen, setCurrentScreen] = useState<Screen>("rooms");
@@ -264,6 +270,11 @@ export default function Sidebar({
           <PathCreationNoticeScreen
             message="Click to add anchor points"
             onCancel={onPathCreateCancel}
+            onUndo={
+              currentPathPoints.length > 1
+                ? onUndoLastPoint
+                : undefined
+            }
           />
         ) : currentScreen === "rooms" ? (
           <RoomListScreen
@@ -667,11 +678,13 @@ function RoomListScreen({
 interface PathCreationNoticeScreenProps {
   message: string;
   onCancel?: () => void;
+  onUndo?: () => void;
 }
 
 function PathCreationNoticeScreen({
   message,
   onCancel,
+  onUndo,
 }: PathCreationNoticeScreenProps) {
   return (
     <div className="space-y-4">
@@ -681,15 +694,26 @@ function PathCreationNoticeScreen({
             <div className="text-lg font-medium text-gray-900">
               {message}
             </div>
-            {onCancel && (
-              <Button
-                variant="outline"
-                onClick={onCancel}
-                className="w-full"
-              >
-                Cancel
-              </Button>
-            )}
+            <div className="space-y-2">
+              {onUndo && (
+                <Button
+                  variant="outline"
+                  onClick={onUndo}
+                  className="w-full"
+                >
+                  Undo Last Point
+                </Button>
+              )}
+              {onCancel && (
+                <Button
+                  variant="outline"
+                  onClick={onCancel}
+                  className="w-full"
+                >
+                  Cancel
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

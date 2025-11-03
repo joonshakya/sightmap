@@ -11,6 +11,15 @@ import DrawingCanvas from "@/components/drawing-canvas";
 import Sidebar from "@/components/sidebar";
 import { useState, useRef } from "react";
 
+type Position = { x: number; y: number };
+
+type PathCreationState = {
+  stage: "idle" | "selecting_destination" | "drawing_path";
+  sourceRoomId: string | null;
+  destinationRoomId: string | null;
+  currentPoints: Position[];
+};
+
 export const Route = createFileRoute("/floors/$floorId")({
   component: RouteComponent,
 });
@@ -43,15 +52,29 @@ function RouteComponent() {
   const [pathSourceRoomId, setPathSourceRoomId] = useState<
     string | null
   >(null);
+  const [pathDestinationRoomId, setPathDestinationRoomId] = useState<
+    string | null
+  >(null);
+  const [currentPathPoints, setCurrentPathPoints] = useState<
+    Position[]
+  >([]);
 
   const handlePathCreateCancel = () => {
     if (drawingCanvasRef.current) {
       drawingCanvasRef.current.cancelPathCreation();
     }
     setPathCreationState("idle");
+    setCurrentPathPoints([]);
+    setPathDestinationRoomId(null);
     // Return to the source room details instead of rooms list
     setSelectedRoomId(pathSourceRoomId);
     setPathSourceRoomId(null);
+  };
+
+  const handleUndoLastPoint = () => {
+    if (currentPathPoints.length > 1) {
+      setCurrentPathPoints((prev) => prev.slice(0, -1));
+    }
   };
 
   const floorData = useQuery(
@@ -222,6 +245,8 @@ function RouteComponent() {
         onPathCreateStart={handlePathCreateStart}
         pathCreationState={pathCreationState}
         onPathCreateCancel={handlePathCreateCancel}
+        currentPathPoints={currentPathPoints}
+        onUndoLastPoint={handleUndoLastPoint}
       />
       <div
         className="flex-1"
@@ -251,6 +276,11 @@ function RouteComponent() {
             gridSize={20}
             onPathCreate={handlePathCreate}
             onPathStateChange={setPathCreationState}
+            pathCreationState={pathCreationState}
+            pathDestinationRoomId={pathDestinationRoomId}
+            onPathDestinationRoomChange={setPathDestinationRoomId}
+            currentPathPoints={currentPathPoints}
+            onPathPointsChange={setCurrentPathPoints}
           />
         ) : null}
       </div>

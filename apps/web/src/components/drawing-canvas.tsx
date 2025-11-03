@@ -925,6 +925,14 @@ const DrawingCanvas = forwardRef<
     onPathStateChange?: (
       state: "idle" | "selecting_destination" | "drawing_path"
     ) => void;
+    pathCreationState:
+      | "idle"
+      | "selecting_destination"
+      | "drawing_path";
+    pathDestinationRoomId: string | null;
+    onPathDestinationRoomChange?: (roomId: string | null) => void;
+    currentPathPoints: Position[];
+    onPathPointsChange?: (points: Position[]) => void;
   }
 >(
   (
@@ -941,48 +949,32 @@ const DrawingCanvas = forwardRef<
       onPathCreate,
       onPathCreateStart,
       onPathStateChange,
+      pathCreationState,
+      pathDestinationRoomId,
+      onPathDestinationRoomChange,
+      currentPathPoints,
+      onPathPointsChange,
     },
     ref
   ) => {
     const stageRef = useRef<any>(null);
 
-    // Path creation state
-    const [pathState, setPathState] = useState<PathCreationState>({
-      stage: "idle",
-      sourceRoomId: null,
-      destinationRoomId: null,
-      currentPoints: [],
-    });
-
     const startPathCreation = useCallback(
       (sourceRoomId: string) => {
-        const newState = {
-          stage: "selecting_destination" as const,
-          sourceRoomId,
-          destinationRoomId: null,
-          currentPoints: [],
-        };
-        setPathState(newState);
-        onPathStateChange?.(newState.stage);
+        onPathStateChange?.("selecting_destination");
       },
       [onPathStateChange]
     );
 
     const getPathCreationState = useCallback(
-      () => pathState.stage,
-      [pathState.stage]
+      () => pathCreationState,
+      [pathCreationState]
     );
 
     const cancelPathCreation = useCallback(() => {
-      const newState = {
-        stage: "idle" as const,
-        sourceRoomId: null,
-        destinationRoomId: null,
-        currentPoints: [],
-      };
-      setPathState(newState);
-      onPathStateChange?.(newState.stage);
-    }, [onPathStateChange]);
+      onPathStateChange?.("idle");
+      onPathPointsChange?.([]);
+    }, [onPathStateChange, onPathPointsChange]);
 
     // Expose functions to parent
     useImperativeHandle(
@@ -1116,7 +1108,7 @@ const DrawingCanvas = forwardRef<
       const worldPos = screenToWorld(pos, panX, panY, zoom);
 
       // Check if we're in path creation mode
-      if (pathState.stage !== "idle") {
+      if (pathCreationState !== "idle") {
         handlePathMouseDown(worldPos);
         return;
       }
@@ -1163,22 +1155,20 @@ const DrawingCanvas = forwardRef<
       (worldPos: Position) => {
         const snappedPos = snapToGridCenter(worldPos, gridSize);
 
-        if (pathState.stage === "idle") {
-          // Not creating a path yet - this shouldn't happen in mouse handler
-          // Path creation should be initiated from sidebar button
-        } else if (pathState.stage === "selecting_destination") {
+        if (pathCreationState === "selecting_destination") {
           // Looking for destination room
-          const clickedRoom = rooms.find((room) =>
-            isInRoomInterior(snappedPos, room)
+          const clickedRoom = rooms.find(
+            (room) =>
+              isInRoomInterior(snappedPos, room) &&
+              room.id !== selectedRoomId
           );
 
-          if (
-            clickedRoom &&
-            clickedRoom.id !== pathState.sourceRoomId
-          ) {
-            // Destination selected - immediately start drawing from source door
+          if (clickedRoom) {
+            // Destination selected - set destination room and start drawing
+            onPathDestinationRoomChange?.(clickedRoom.id);
+
             const sourceRoom = rooms.find(
-              (r) => r.id === pathState.sourceRoomId
+              (r) => r.id === selectedRoomId
             );
             if (
               sourceRoom &&
@@ -1192,119 +1182,80 @@ const DrawingCanvas = forwardRef<
                 },
                 gridSize
               );
-              const newState = {
-                stage: "drawing_path" as const,
-                sourceRoomId: pathState.sourceRoomId,
-                destinationRoomId: clickedRoom.id,
-                currentPoints: [sourceDoorPos], // Start immediately from source door
-              };
-              setPathState(newState);
-              onPathStateChange?.(newState.stage);
+              onPathStateChange?.("drawing_path");
+              onPathPointsChange?.([sourceDoorPos]); // Start immediately from source door
               onRoomSelect(clickedRoom.id);
             }
           }
-        } else if (pathState.stage === "drawing_path") {
-          // Drawing path - handle door clicks
-          const sourceRoom = rooms.find(
-            (r) => r.id === pathState.sourceRoomId
-          );
+        } else if (pathCreationState === "drawing_path") {
+          // Drawing path - check if clicked on destination door
           const destRoom = rooms.find(
-            (r) => r.id === pathState.destinationRoomId
+            (room) => room.id === pathDestinationRoomId
           );
 
-          if (sourceRoom && destRoom) {
-            // Check if clicked on source door
-            const clickedSourceDoor =
-              sourceRoom.doorX !== null &&
-              sourceRoom.doorY !== null &&
-              Math.abs(
-                sourceRoom.x + sourceRoom.doorX - snappedPos.x
-              ) < gridSize &&
-              Math.abs(
-                sourceRoom.y + sourceRoom.doorY - snappedPos.y
-              ) < gridSize;
+          if (
+            destRoom &&
+            destRoom.doorX !== null &&
+            destRoom.doorY !== null
+          ) {
+            // Check if clicked position is close to destination door
+            const doorPos = {
+              x: destRoom.x + destRoom.doorX,
+              y: destRoom.y + destRoom.doorY,
+            };
 
-            // Check if clicked on destination door
-            const clickedDestDoor =
-              destRoom.doorX !== null &&
-              destRoom.doorY !== null &&
-              Math.abs(destRoom.x + destRoom.doorX - snappedPos.x) <
-                gridSize &&
-              Math.abs(destRoom.y + destRoom.doorY - snappedPos.y) <
-                gridSize;
+            const distanceToDoor = Math.sqrt(
+              Math.pow(snappedPos.x - doorPos.x, 2) +
+                Math.pow(snappedPos.y - doorPos.y, 2)
+            );
 
-            if (
-              clickedSourceDoor &&
-              pathState.currentPoints.length === 0
-            ) {
-              // Start drawing from source door
-              setPathState((prev) => ({
-                ...prev,
-                currentPoints: [snappedPos],
-              }));
-            } else if (pathState.currentPoints.length > 0) {
-              // Add waypoint - use orthogonal prediction for any click (including destination door)
-              const lastPoint =
-                pathState.currentPoints[
-                  pathState.currentPoints.length - 1
-                ];
-              const orthogonalPos = getOrthogonalPrediction(
-                lastPoint,
-                worldPos,
-                gridSize
-              );
-
-              // Check if this orthogonal position reaches the destination door
-              const reachesDestDoor =
-                clickedDestDoor &&
-                Math.abs(
-                  orthogonalPos.x - (destRoom.x + destRoom.doorX!)
-                ) < gridSize &&
-                Math.abs(
-                  orthogonalPos.y - (destRoom.y + destRoom.doorY!)
-                ) < gridSize;
-
-              if (reachesDestDoor) {
-                // Complete path - orthogonal segment reaches destination door
-                const finalPoints = [
-                  ...pathState.currentPoints,
-                  orthogonalPos,
-                ];
-                if (
-                  onPathCreate &&
-                  pathState.sourceRoomId &&
-                  pathState.destinationRoomId
-                ) {
-                  onPathCreate(
-                    pathState.sourceRoomId,
-                    pathState.destinationRoomId,
-                    finalPoints
-                  );
-                }
-                const completedState = {
-                  stage: "idle" as const,
-                  sourceRoomId: null,
-                  destinationRoomId: null,
-                  currentPoints: [],
-                };
-                setPathState(completedState);
-                onPathStateChange?.(completedState.stage);
-                onRoomSelect(pathState.sourceRoomId);
-              } else {
-                // Add waypoint and continue drawing
-                setPathState((prev) => ({
-                  ...prev,
-                  currentPoints: [
-                    ...prev.currentPoints,
-                    orthogonalPos,
-                  ],
-                }));
+            if (distanceToDoor < gridSize) {
+              // Clicked on destination door - complete path
+              const finalPoints = [...currentPathPoints, snappedPos];
+              if (onPathCreate && selectedRoomId) {
+                onPathCreate(
+                  selectedRoomId,
+                  destRoom.id,
+                  finalPoints
+                );
               }
+              onPathStateChange?.("idle");
+              onPathPointsChange?.([]);
+              onPathDestinationRoomChange?.(null);
+              onRoomSelect(selectedRoomId);
+              return;
             }
+          }
+
+          // Not clicking on destination door - add waypoint
+          if (currentPathPoints.length > 0) {
+            const lastPoint =
+              currentPathPoints[currentPathPoints.length - 1];
+            const orthogonalPos = getOrthogonalPrediction(
+              lastPoint,
+              worldPos,
+              gridSize
+            );
+            onPathPointsChange?.([
+              ...currentPathPoints,
+              orthogonalPos,
+            ]);
           }
         }
       },
-      [pathState, gridSize, rooms, onRoomSelect, onPathCreate]
+      [
+        pathCreationState,
+        pathDestinationRoomId,
+        gridSize,
+        rooms,
+        selectedRoomId,
+        currentPathPoints,
+        onRoomSelect,
+        onPathCreate,
+        onPathStateChange,
+        onPathPointsChange,
+        onPathDestinationRoomChange,
+      ]
     );
 
     const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
@@ -1412,10 +1363,11 @@ const DrawingCanvas = forwardRef<
                       handleRoomDragEndWrapper(e, room)
                     }
                     onClick={() => onRoomSelect(room.id)}
-                    isPathSource={pathState.sourceRoomId === room.id}
-                    isPathDestination={
-                      pathState.destinationRoomId === room.id
+                    isPathSource={
+                      pathCreationState !== "idle" &&
+                      selectedRoomId === room.id
                     }
+                    isPathDestination={false}
                     hasPaths={
                       room.fromPaths.length > 0 ||
                       room.toPaths.length > 0
@@ -1447,15 +1399,15 @@ const DrawingCanvas = forwardRef<
                     selectedRoomId={selectedRoomId}
                     selectedPathId={selectedPathId}
                     gridSize={gridSize}
-                    isDrawingPath={pathState.stage !== "idle"}
+                    isDrawingPath={pathCreationState !== "idle"}
                   />
                 ))}
 
                 {/* Path creation preview */}
-                {pathState.stage === "drawing_path" &&
-                  pathState.currentPoints.length > 0 && (
+                {pathCreationState === "drawing_path" &&
+                  currentPathPoints.length > 0 && (
                     <PathCreationPreview
-                      points={pathState.currentPoints}
+                      points={currentPathPoints}
                       mousePos={mousePos}
                       gridSize={gridSize}
                     />
