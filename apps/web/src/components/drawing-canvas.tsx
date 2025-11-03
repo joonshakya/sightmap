@@ -743,11 +743,13 @@ const PathVisualization = ({
   selectedRoomId,
   selectedPathId,
   gridSize,
+  isDrawingPath = false,
 }: {
   paths: Room["fromPaths"];
   selectedRoomId: string | null;
   selectedPathId: string | null;
   gridSize: number;
+  isDrawingPath?: boolean;
 }) => {
   return (
     <Group>
@@ -755,7 +757,9 @@ const PathVisualization = ({
         // Calculate path-specific opacity based on room/path selection
         let pathOpacity = 0.1; // Very faint by default
 
-        if (selectedPathId === path.id) {
+        if (isDrawingPath) {
+          pathOpacity = 0.05; // Very faint during path creation
+        } else if (selectedPathId === path.id) {
           pathOpacity = 1.0; // Full opacity for selected path
         } else if (selectedPathId) {
           // If a specific path is selected, keep all others faint
@@ -1442,6 +1446,7 @@ const DrawingCanvas = forwardRef<
                     selectedRoomId={selectedRoomId}
                     selectedPathId={selectedPathId}
                     gridSize={gridSize}
+                    isDrawingPath={pathState.stage !== "idle"}
                   />
                 ))}
 
