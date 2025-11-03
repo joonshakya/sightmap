@@ -23,6 +23,7 @@ import {
   Trash2,
   Loader2,
 } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import type { RouterOutputs } from "@/utils/trpc";
 
 import type { StepSize } from "@sightmap/common/prisma/enums";
@@ -121,6 +122,7 @@ export default function Sidebar({
   const queryClient = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasUserBlurredRef = useRef(false);
+  const navigate = useNavigate();
 
   const selectedRoom = rooms.find(
     (room) => room.id === selectedRoomId
@@ -210,6 +212,16 @@ export default function Sidebar({
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center gap-2 flex-1">
+          {currentScreen === "rooms" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate({ to: "/" })}
+              className="p-1 flex-shrink-0"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          )}
           {(currentScreen === "details" ||
             currentScreen === "instructions") && (
             <Button
