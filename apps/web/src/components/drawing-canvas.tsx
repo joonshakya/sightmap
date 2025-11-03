@@ -1184,7 +1184,6 @@ const DrawingCanvas = forwardRef<
               );
               onPathStateChange?.("drawing_path");
               onPathPointsChange?.([sourceDoorPos]); // Start immediately from source door
-              onRoomSelect(clickedRoom.id);
             }
           }
         } else if (pathCreationState === "drawing_path") {
@@ -1362,12 +1361,18 @@ const DrawingCanvas = forwardRef<
                     onDragEnd={(e) =>
                       handleRoomDragEndWrapper(e, room)
                     }
-                    onClick={() => onRoomSelect(room.id)}
+                    onClick={() => {
+                      if (pathCreationState === "idle") {
+                        onRoomSelect(room.id);
+                      }
+                    }}
                     isPathSource={
                       pathCreationState !== "idle" &&
                       selectedRoomId === room.id
                     }
-                    isPathDestination={false}
+                    isPathDestination={
+                      pathDestinationRoomId === room.id
+                    }
                     hasPaths={
                       room.fromPaths.length > 0 ||
                       room.toPaths.length > 0
@@ -1386,7 +1391,11 @@ const DrawingCanvas = forwardRef<
                     onDragEnd={(e) =>
                       handlePendingRoomDragEndWrapper(e, room)
                     }
-                    onClick={() => onRoomSelect(room.id)}
+                    onClick={() => {
+                      if (pathCreationState === "idle") {
+                        onRoomSelect(room.id);
+                      }
+                    }}
                     hasPaths={false}
                   />
                 ))}
