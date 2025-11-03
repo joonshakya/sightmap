@@ -20,6 +20,11 @@ function RouteComponent() {
   const queryClient = useQueryClient();
   const drawingCanvasRef = useRef<{
     startPathCreation: (sourceRoomId: string) => void;
+    getPathCreationState: () =>
+      | "idle"
+      | "selecting_destination"
+      | "drawing_path";
+    cancelPathCreation: () => void;
   } | null>(null);
 
   const [stageDimensions, setStageDimensions] = useState({
@@ -32,6 +37,22 @@ function RouteComponent() {
   const [selectedPathId, setSelectedPathId] = useState<string | null>(
     null
   );
+  const [pathCreationState, setPathCreationState] = useState<
+    "idle" | "selecting_destination" | "drawing_path"
+  >("idle");
+  const [pathSourceRoomId, setPathSourceRoomId] = useState<
+    string | null
+  >(null);
+
+  const handlePathCreateCancel = () => {
+    if (drawingCanvasRef.current) {
+      drawingCanvasRef.current.cancelPathCreation();
+    }
+    setPathCreationState("idle");
+    // Return to the source room details instead of rooms list
+    setSelectedRoomId(pathSourceRoomId);
+    setPathSourceRoomId(null);
+  };
 
   const floorData = useQuery(
     trpc.floor.getFloorData.queryOptions({ floorId })
@@ -136,6 +157,8 @@ function RouteComponent() {
   };
 
   const handlePathCreateStart = (sourceRoomId: string) => {
+    // Store the source room ID for cancel functionality
+    setPathSourceRoomId(sourceRoomId);
     // Call the startPathCreation method on the DrawingCanvas ref
     if (drawingCanvasRef.current) {
       drawingCanvasRef.current.startPathCreation(sourceRoomId);
@@ -152,6 +175,8 @@ function RouteComponent() {
       toRoomId,
       anchors,
     });
+    // Clear the stored source room ID when path creation completes
+    setPathSourceRoomId(null);
   };
 
   const handlePathDelete = (pathId: string) => {
@@ -195,6 +220,8 @@ function RouteComponent() {
         onRoomDelete={handleRoomDelete}
         onPathDelete={handlePathDelete}
         onPathCreateStart={handlePathCreateStart}
+        pathCreationState={pathCreationState}
+        onPathCreateCancel={handlePathCreateCancel}
       />
       <div
         className="flex-1"
@@ -223,6 +250,7 @@ function RouteComponent() {
             onRoomDelete={handleRoomDelete}
             gridSize={20}
             onPathCreate={handlePathCreate}
+            onPathStateChange={setPathCreationState}
           />
         ) : null}
       </div>

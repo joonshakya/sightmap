@@ -891,6 +891,7 @@ const PathCreationPreview = ({
 const DrawingCanvas = forwardRef<
   {
     startPathCreation: (sourceRoomId: string) => void;
+    cancelPathCreation: () => void;
   },
   {
     stageDimensions: { width: number; height: number };
@@ -917,6 +918,9 @@ const DrawingCanvas = forwardRef<
       anchors: Position[]
     ) => void;
     onPathCreateStart?: (sourceRoomId: string) => void;
+    onPathStateChange?: (
+      state: "idle" | "selecting_destination" | "drawing_path"
+    ) => void;
   }
 >(
   (
@@ -932,26 +936,10 @@ const DrawingCanvas = forwardRef<
       gridSize = DEFAULT_CONFIG.gridSize,
       onPathCreate,
       onPathCreateStart,
+      onPathStateChange,
     },
     ref
   ) => {
-    const startPathCreation = useCallback((sourceRoomId: string) => {
-      setPathState({
-        stage: "selecting_destination",
-        sourceRoomId,
-        destinationRoomId: null,
-        currentPoints: [],
-      });
-    }, []);
-
-    // Expose startPathCreation function to parent
-    useImperativeHandle(
-      ref,
-      () => ({
-        startPathCreation,
-      }),
-      [startPathCreation]
-    );
     const stageRef = useRef<any>(null);
 
     // Path creation state
@@ -961,6 +949,47 @@ const DrawingCanvas = forwardRef<
       destinationRoomId: null,
       currentPoints: [],
     });
+
+    const startPathCreation = useCallback(
+      (sourceRoomId: string) => {
+        const newState = {
+          stage: "selecting_destination" as const,
+          sourceRoomId,
+          destinationRoomId: null,
+          currentPoints: [],
+        };
+        setPathState(newState);
+        onPathStateChange?.(newState.stage);
+      },
+      [onPathStateChange]
+    );
+
+    const getPathCreationState = useCallback(
+      () => pathState.stage,
+      [pathState.stage]
+    );
+
+    const cancelPathCreation = useCallback(() => {
+      const newState = {
+        stage: "idle" as const,
+        sourceRoomId: null,
+        destinationRoomId: null,
+        currentPoints: [],
+      };
+      setPathState(newState);
+      onPathStateChange?.(newState.stage);
+    }, [onPathStateChange]);
+
+    // Expose functions to parent
+    useImperativeHandle(
+      ref,
+      () => ({
+        startPathCreation,
+        getPathCreationState,
+        cancelPathCreation,
+      }),
+      [startPathCreation, getPathCreationState, cancelPathCreation]
+    );
 
     // Mouse position for predictive line
     const [mousePos, setMousePos] = useState<Position>({
@@ -1159,12 +1188,14 @@ const DrawingCanvas = forwardRef<
                 },
                 gridSize
               );
-              setPathState({
-                stage: "drawing_path",
+              const newState = {
+                stage: "drawing_path" as const,
                 sourceRoomId: pathState.sourceRoomId,
                 destinationRoomId: clickedRoom.id,
                 currentPoints: [sourceDoorPos], // Start immediately from source door
-              });
+              };
+              setPathState(newState);
+              onPathStateChange?.(newState.stage);
               onRoomSelect(clickedRoom.id);
             }
           }
@@ -1246,12 +1277,14 @@ const DrawingCanvas = forwardRef<
                     finalPoints
                   );
                 }
-                setPathState({
-                  stage: "idle",
+                const completedState = {
+                  stage: "idle" as const,
                   sourceRoomId: null,
                   destinationRoomId: null,
                   currentPoints: [],
-                });
+                };
+                setPathState(completedState);
+                onPathStateChange?.(completedState.stage);
               } else {
                 // Add waypoint and continue drawing
                 setPathState((prev) => ({

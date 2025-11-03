@@ -71,6 +71,11 @@ interface SidebarProps {
   onRoomDelete?: (roomId: string) => void;
   onPathDelete?: (pathId: string) => void;
   onPathCreateStart?: (sourceRoomId: string) => void;
+  pathCreationState?:
+    | "idle"
+    | "selecting_destination"
+    | "drawing_path";
+  onPathCreateCancel?: () => void;
   className?: string;
 }
 
@@ -102,6 +107,8 @@ export default function Sidebar({
   onRoomDelete,
   onPathDelete,
   onPathCreateStart,
+  pathCreationState = "idle",
+  onPathCreateCancel,
   className = "",
 }: SidebarProps) {
   const [currentScreen, setCurrentScreen] = useState<Screen>("rooms");
@@ -248,7 +255,17 @@ export default function Sidebar({
 
       {/* Content */}
       <div className="p-4">
-        {currentScreen === "rooms" ? (
+        {pathCreationState === "selecting_destination" ? (
+          <PathCreationNoticeScreen
+            message="Choose a destination room"
+            onCancel={onPathCreateCancel}
+          />
+        ) : pathCreationState === "drawing_path" ? (
+          <PathCreationNoticeScreen
+            message="Click to add anchor points"
+            onCancel={onPathCreateCancel}
+          />
+        ) : currentScreen === "rooms" ? (
           <RoomListScreen
             rooms={rooms}
             selectedRoomId={selectedRoomId}
@@ -643,6 +660,39 @@ function RoomListScreen({
           ))
         )}
       </div>
+    </div>
+  );
+}
+
+interface PathCreationNoticeScreenProps {
+  message: string;
+  onCancel?: () => void;
+}
+
+function PathCreationNoticeScreen({
+  message,
+  onCancel,
+}: PathCreationNoticeScreenProps) {
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center space-y-4">
+            <div className="text-lg font-medium text-gray-900">
+              {message}
+            </div>
+            {onCancel && (
+              <Button
+                variant="outline"
+                onClick={onCancel}
+                className="w-full"
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
