@@ -1133,7 +1133,38 @@ const DrawingCanvas = forwardRef<
           // Clicked on wall border - set door position (only if no paths)
           updateRoomDoor(clickedRoom, worldPos, gridSize);
         }
-        onRoomSelect(clickedRoom.id);
+
+        // Determine which room to select
+        let roomToSelect = clickedRoom.id;
+
+        if (
+          hasPaths &&
+          selectedRoomId &&
+          selectedRoomId !== clickedRoom.id
+        ) {
+          const selectedRoom = rooms.find(
+            (r) => r.id === selectedRoomId
+          );
+          // Only check connections for saved rooms (not pending rooms)
+          const clickedSavedRoom = rooms.find(
+            (r) => r.id === clickedRoom.id
+          );
+          if (selectedRoom && clickedSavedRoom) {
+            // Check if clicked room is connected to selected room
+            const isConnected =
+              selectedRoom.fromPaths.some(
+                (p) => p.toRoomId === clickedRoom.id
+              ) ||
+              clickedSavedRoom.fromPaths.some(
+                (p) => p.toRoomId === selectedRoomId
+              );
+            if (isConnected) {
+              roomToSelect = selectedRoomId; // Keep current selection
+            }
+          }
+        }
+
+        onRoomSelect(roomToSelect);
         return;
       }
 
