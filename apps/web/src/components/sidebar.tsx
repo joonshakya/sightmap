@@ -355,6 +355,30 @@ function InstructionsScreen({
     trpc.userSettings.get.queryOptions()
   );
 
+  // Progress tracking
+  const totalSegments = Math.max(0, (path.anchors?.length || 0) - 1);
+  const [progressState, setProgressState] = useState({
+    descriptiveSteps: 0,
+    conciseInstructions: 0,
+  });
+
+  // Calculate progress percentage
+  const calculateProgress = () => {
+    if (totalSegments === 0) return 0;
+
+    const { descriptiveSteps, conciseInstructions } = progressState;
+
+    if (descriptiveSteps < totalSegments) {
+      // Still generating descriptive instructions (60% of progress)
+      return (descriptiveSteps / totalSegments) * 60;
+    } else {
+      // Descriptive instructions complete, now concise instructions (40% of progress)
+      return 60 + (conciseInstructions / totalSegments) * 40;
+    }
+  };
+
+  const progressPercentage = calculateProgress();
+
   // Save instructions mutation
   const saveInstructionsMutation = useMutation(
     trpc.floor.saveInstructions.mutationOptions({
@@ -397,6 +421,15 @@ function InstructionsScreen({
   };
 
   const parsedData = parseCompletionContent(completion);
+
+  // Update progress state when completion changes
+  useEffect(() => {
+    const { steps, conciseInstructions } = parsedData;
+    setProgressState({
+      descriptiveSteps: steps.length,
+      conciseInstructions: conciseInstructions.length,
+    });
+  }, [completion]);
 
   const handleSaveInstructions = () => {
     if (!parsedData.steps.length) return;
@@ -481,6 +514,31 @@ function InstructionsScreen({
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-4">
+            {/* Progress Bar */}
+            {isLoading && totalSegments > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">
+                    Generating Instructions
+                  </span>
+                  <span className="font-medium">
+                    {Math.round(progressPercentage)}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${progressPercentage}%` }}
+                  />
+                </div>
+                <div className="text-xs text-gray-500">
+                  {progressState.descriptiveSteps < totalSegments
+                    ? `Generating descriptive instructions (${progressState.descriptiveSteps}/${totalSegments})`
+                    : `Generating concise instructions (${progressState.conciseInstructions}/${totalSegments})`}
+                </div>
+              </div>
+            )}
+
             {/* Instructions Display */}
             <div className="border border-gray-200 rounded-lg p-4 bg-white min-h-[200px]">
               {!hasSavedInstructions && !parsedData.steps.length ? (
