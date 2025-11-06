@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   ArrowLeft,
   MapPin,
@@ -71,6 +72,7 @@ interface SidebarProps {
   onRoomSelect: (roomId: string | null) => void;
   onPathSelect: (pathId: string | null) => void;
   onRoomNameUpdate: (roomId: string, name: string) => void;
+  onRoomNumberUpdate: (roomId: string, number: string) => void;
   onRoomDelete?: (roomId: string) => void;
   onPathDelete?: (pathId: string) => void;
   onPathCreateStart?: (sourceRoomId: string) => void;
@@ -109,6 +111,7 @@ export default function Sidebar({
   onRoomSelect,
   onPathSelect,
   onRoomNameUpdate,
+  onRoomNumberUpdate,
   onRoomDelete,
   onPathDelete,
   onPathCreateStart,
@@ -301,6 +304,7 @@ export default function Sidebar({
               onPathSelect(pathId);
               setCurrentScreen("instructions");
             }}
+            onRoomNumberUpdate={onRoomNumberUpdate}
             onRoomDelete={onRoomDelete}
             onPathDelete={onPathDelete}
             onPathCreateStart={onPathCreateStart}
@@ -728,6 +732,7 @@ function PathCreationNoticeScreen({
 interface RoomDetailsScreenProps {
   room: Room;
   onPathSelect?: (pathId: string) => void;
+  onRoomNumberUpdate?: (roomId: string, number: string) => void;
   onRoomDelete?: (roomId: string) => void;
   onPathDelete?: (pathId: string) => void;
   onPathCreateStart?: (sourceRoomId: string) => void;
@@ -736,16 +741,53 @@ interface RoomDetailsScreenProps {
 function RoomDetailsScreen({
   room,
   onPathSelect,
+  onRoomNumberUpdate,
   onRoomDelete,
   onPathDelete,
   onPathCreateStart,
 }: RoomDetailsScreenProps) {
   const connectedPaths = getConnectedPaths(room);
+  const queryClient = useQueryClient();
 
   // Fetch user settings for step size adjustment in previews
   const { data: userSettings } = useQuery(
     trpc.userSettings.get.queryOptions()
   );
+
+  const handleNumberChange = (newNumber: string) => {
+    if (!onRoomNumberUpdate) return;
+    // Update the cache directly
+    queryClient.setQueryData(
+      trpc.floor.getFloorData.queryKey({
+        floorId: room.floorId,
+      }),
+      (oldData: any) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          rooms: oldData.rooms.map((r: Room) =>
+            r.id === room.id ? { ...r, number: newNumber } : r
+          ),
+        };
+      }
+    );
+  };
+
+  const handleNumberBlur = () => {
+    if (!onRoomNumberUpdate) return;
+    const trimmedNumber = room.number.trim();
+    onRoomNumberUpdate(room.id, trimmedNumber);
+    toast.success(`Room number updated to "${trimmedNumber}"`);
+  };
+
+  const handleNumberKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleNumberBlur();
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -758,24 +800,17 @@ function RoomDetailsScreen({
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-3 text-sm">
-            <div>
-              <span className="font-medium">Number:</span>{" "}
-              {room.number}
+            <div className="flex items-center gap-2">
+              <span className="font-medium">Number:</span>
+              <Input
+                value={room.number}
+                onChange={(e) => handleNumberChange(e.target.value)}
+                onBlur={handleNumberBlur}
+                onKeyDown={handleNumberKeyDown}
+                className="flex-1 h-8 text-sm"
+                placeholder="Room number"
+              />
             </div>
-            <div>
-              <span className="font-medium">Position:</span> ({room.x}
-              , {room.y})
-            </div>
-            <div>
-              <span className="font-medium">Size:</span> {room.width}{" "}
-              × {room.height}
-            </div>
-            {room.doorX !== null && room.doorY !== null && (
-              <div>
-                <span className="font-medium">Door:</span> (
-                {room.doorX}, {room.doorY})
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>

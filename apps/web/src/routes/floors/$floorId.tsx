@@ -121,6 +121,16 @@ function RouteComponent() {
     })
   );
 
+  const updateRoomNumber = useMutation(
+    trpc.floor.updateRoomNumber.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: trpc.floor.getFloorData.queryKey({ floorId }),
+        });
+      },
+    })
+  );
+
   const createPath = useMutation(
     trpc.floor.createPath.mutationOptions({
       onSuccess: () => {
@@ -242,6 +252,9 @@ function RouteComponent() {
         onPathSelect={setSelectedPathId}
         onRoomNameUpdate={(roomId, name) => {
           updateRoomName.mutate({ roomId, name });
+        }}
+        onRoomNumberUpdate={(roomId, number) => {
+          updateRoomNumber.mutate({ roomId, number });
         }}
         onRoomDelete={handleRoomDelete}
         onPathDelete={handlePathDelete}

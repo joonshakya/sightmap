@@ -220,6 +220,40 @@ export const floorRouter = router({
       }
     }),
 
+  // Update room number
+  updateRoomNumber: publicProcedure
+    .input(
+      z.object({
+        roomId: z.cuid(),
+        number: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        return await prisma.room.update({
+          where: { id: input.roomId },
+          data: {
+            number: input.number,
+          },
+          include: {
+            floor: {
+              include: {
+                building: true,
+              },
+            },
+          },
+        });
+      } catch (error: any) {
+        if (error.code === "P2025") {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Room not found",
+          });
+        }
+        throw error;
+      }
+    }),
+
   // Create a path between two rooms
   createPath: protectedProcedure
     .input(
