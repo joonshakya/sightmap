@@ -235,7 +235,10 @@ function RouteComponent() {
         rooms={floorData.data?.rooms || []}
         selectedRoomId={selectedRoomId}
         selectedPathId={selectedPathId}
-        onRoomSelect={setSelectedRoomId}
+        onRoomSelect={(roomId) => {
+          setSelectedRoomId(roomId);
+          setSelectedPathId(null); // Clear path selection when room is selected
+        }}
         onPathSelect={setSelectedPathId}
         onRoomNameUpdate={(roomId, name) => {
           updateRoomName.mutate({ roomId, name });
@@ -269,7 +272,10 @@ function RouteComponent() {
             rooms={floorData.data?.rooms || []}
             selectedRoomId={selectedRoomId}
             selectedPathId={selectedPathId}
-            onRoomSelect={setSelectedRoomId}
+            onRoomSelect={(roomId) => {
+              setSelectedRoomId(roomId);
+              setSelectedPathId(null); // Clear path selection when room is selected
+            }}
             onRoomUpdate={handleRoomUpdate}
             onRoomCreate={handleRoomCreate}
             onRoomDelete={handleRoomDelete}
