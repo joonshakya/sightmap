@@ -23,8 +23,10 @@ import {
   Route,
   Trash2,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
+import { useBulkInstructionGeneration } from "@/hooks/useBulkInstructionGeneration";
 import type { RouterOutputs } from "@/utils/trpc";
 
 import type { StepSize } from "@sightmap/common/prisma/enums";
@@ -122,6 +124,10 @@ export default function Sidebar({
   className = "",
 }: SidebarProps) {
   const [currentScreen, setCurrentScreen] = useState<Screen>("rooms");
+  const [
+    isGeneratingInstructionInBulk,
+    setIsGeneratingInstructionInBulk,
+  ] = useState(false);
   const queryClient = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasUserBlurredRef = useRef(false);
@@ -130,6 +136,21 @@ export default function Sidebar({
   const selectedRoom = rooms.find(
     (room) => room.id === selectedRoomId
   );
+
+  // Get floor ID from the first room (assuming all rooms are from the same floor)
+  const floorId = rooms[0]?.floorId || "";
+
+  // Bulk instruction generation hook
+  const { isGenerating, progress, generateBulkInstructions } =
+    useBulkInstructionGeneration({
+      floorId,
+      onProgress: (progress) => {
+        // Progress updates are handled internally
+      },
+      onComplete: (results) => {
+        setIsGeneratingInstructionInBulk(false);
+      },
+    });
 
   // Automatically switch to details screen when a room is selected
   useEffect(() => {
@@ -208,6 +229,41 @@ export default function Sidebar({
     }
   };
 
+  const handleBulkGenerationToggle = () => {
+    if (isGeneratingInstructionInBulk) {
+      // Cancel bulk generation
+      setIsGeneratingInstructionInBulk(false);
+    } else {
+      // Start bulk generation
+      setIsGeneratingInstructionInBulk(true);
+
+      // Collect all paths that don't have instructions
+      const pathsToGenerate: Path[] = [];
+      rooms.forEach((room) => {
+        room.fromPaths.forEach((path) => {
+          const hasInstructions =
+            path.instructionSet &&
+            ((path.instructionSet.descriptiveInstructions &&
+              path.instructionSet.descriptiveInstructions.length >
+                0) ||
+              (path.instructionSet.conciseInstructions &&
+                path.instructionSet.conciseInstructions.length > 0));
+
+          if (!hasInstructions) {
+            pathsToGenerate.push(path);
+          }
+        });
+      });
+
+      if (pathsToGenerate.length > 0) {
+        generateBulkInstructions(pathsToGenerate);
+      } else {
+        toast.info("All paths already have instructions!");
+        setIsGeneratingInstructionInBulk(false);
+      }
+    }
+  };
+
   return (
     <div
       className={`w-[26rem] bg-gray-50 border-r border-gray-200 h-full absolute overflow-y-auto ${className}`}
@@ -272,6 +328,26 @@ export default function Sidebar({
             <h2 className="text-lg font-semibold">Room Details</h2>
           )}
         </div>
+        {currentScreen === "rooms" && (
+          <Button
+            variant={
+              isGeneratingInstructionInBulk ? "default" : "outline"
+            }
+            size="sm"
+            onClick={handleBulkGenerationToggle}
+            disabled={isGenerating}
+            className="flex items-center gap-2"
+          >
+            {isGenerating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            {isGeneratingInstructionInBulk
+              ? "Generating..."
+              : "Generate All"}
+          </Button>
+        )}
       </div>
 
       {/* Content */}
@@ -296,6 +372,10 @@ export default function Sidebar({
             rooms={rooms}
             selectedRoomId={selectedRoomId}
             onRoomClick={handleRoomClick}
+            isGeneratingInstructionInBulk={
+              isGeneratingInstructionInBulk
+            }
+            bulkProgress={progress}
           />
         ) : currentScreen === "details" && selectedRoom ? (
           <RoomDetailsScreen
@@ -702,15 +782,80 @@ interface RoomListScreenProps {
   rooms: Room[];
   selectedRoomId: string | null;
   onRoomClick: (room: Room) => void;
+  isGeneratingInstructionInBulk?: boolean;
+  bulkProgress?: {
+    totalPaths: number;
+    completedPaths: number;
+    failedPaths: number;
+    currentBatch: number;
+    totalBatches: number;
+    pathStatuses: Record<
+      string,
+      "pending" | "generating" | "completed" | "failed"
+    >;
+  };
 }
 
 function RoomListScreen({
   rooms,
   selectedRoomId,
   onRoomClick,
+  isGeneratingInstructionInBulk = false,
+  bulkProgress,
 }: RoomListScreenProps) {
+  // Calculate overall progress
+  const overallProgress = bulkProgress
+    ? Math.round(
+        ((bulkProgress.completedPaths + bulkProgress.failedPaths) /
+          bulkProgress.totalPaths) *
+          100
+      )
+    : 0;
+
   return (
     <div className="space-y-4">
+      {/* Bulk Generation Progress */}
+      {isGeneratingInstructionInBulk && bulkProgress && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">
+                  Generating Instructions
+                </h3>
+                <span className="text-sm text-gray-600">
+                  {bulkProgress.completedPaths +
+                    bulkProgress.failedPaths}
+                  /{bulkProgress.totalPaths}
+                </span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">
+                    Overall Progress
+                  </span>
+                  <span className="font-medium">
+                    {overallProgress}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${overallProgress}%` }}
+                  />
+                </div>
+                <div className="text-xs text-gray-500">
+                  Batch {bulkProgress.currentBatch}/
+                  {bulkProgress.totalBatches} •{" "}
+                  {bulkProgress.completedPaths} completed •{" "}
+                  {bulkProgress.failedPaths} failed
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Rooms List */}
       <div className="space-y-2">
         {rooms.length === 0 ? (
@@ -722,27 +867,102 @@ function RoomListScreen({
             </p>
           </div>
         ) : (
-          rooms.map((room) => (
-            <Card
-              key={room.id}
-              className="cursor-pointer transition-colors hover:bg-gray-100"
-              onClick={() => onRoomClick(room)}
-            >
-              <CardContent className="px-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">{room.name}</h3>
-                    <p className="text-sm text-gray-600">
-                      {room.number}
-                    </p>
+          rooms.map((room) => {
+            const fromPaths = room.fromPaths || [];
+            const hasPaths = fromPaths.length > 0;
+
+            return (
+              <Card key={room.id} className="overflow-hidden">
+                <CardContent className="px-3">
+                  {/* Room Header */}
+                  <div
+                    className={`flex items-center justify-between p-3 ${
+                      !isGeneratingInstructionInBulk
+                        ? "cursor-pointer transition-colors hover:bg-gray-100"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      !isGeneratingInstructionInBulk &&
+                      onRoomClick(room)
+                    }
+                  >
+                    <div>
+                      <h3 className="font-medium">{room.name}</h3>
+                      <p className="text-sm text-gray-600">
+                        {room.number}
+                      </p>
+                    </div>
+                    <Badge variant="secondary">
+                      {fromPaths.length} paths
+                    </Badge>
                   </div>
-                  <Badge variant="secondary">
-                    {getConnectedPaths(room).length} paths
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+
+                  {/* Paths Sublist - only show fromPaths when in bulk mode */}
+                  {isGeneratingInstructionInBulk && hasPaths && (
+                    <div className="border-t border-gray-100 pt-2">
+                      <div className="space-y-2">
+                        {fromPaths.map((path) => {
+                          const status =
+                            bulkProgress?.pathStatuses[path.id] ||
+                            "pending";
+                          const connectedRoom = path.toRoom;
+
+                          return (
+                            <div
+                              key={path.id}
+                              className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-md"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  variant={
+                                    status === "completed"
+                                      ? "default"
+                                      : status === "failed"
+                                      ? "destructive"
+                                      : status === "generating"
+                                      ? "secondary"
+                                      : "outline"
+                                  }
+                                  className="text-xs"
+                                >
+                                  {status === "generating" && (
+                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                  )}
+                                  {status}
+                                </Badge>
+                                <span className="text-sm">
+                                  → {connectedRoom.name} (
+                                  {connectedRoom.number})
+                                </span>
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className="text-xs"
+                              >
+                                {(() => {
+                                  const anchorCount =
+                                    path.anchors?.length || 0;
+                                  const turns = Math.max(
+                                    0,
+                                    anchorCount - 2
+                                  );
+                                  return turns === 0
+                                    ? "no turns"
+                                    : `${turns} turn${
+                                        turns === 1 ? "" : "s"
+                                      }`;
+                                })()}
+                              </Badge>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </div>
