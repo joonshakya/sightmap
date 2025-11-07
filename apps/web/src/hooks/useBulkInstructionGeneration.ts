@@ -17,6 +17,14 @@ interface BulkGenerationProgress {
     string,
     "pending" | "generating" | "completed" | "failed"
   >;
+  pathProgress: Record<
+    string,
+    {
+      descriptiveSteps: number;
+      conciseInstructions: number;
+      totalSegments: number;
+    }
+  >;
 }
 
 interface UseBulkInstructionGenerationProps {
@@ -40,6 +48,7 @@ export function useBulkInstructionGeneration({
     currentBatch: 0,
     totalBatches: 0,
     pathStatuses: {},
+    pathProgress: {},
   });
 
   const queryClient = useQueryClient();
@@ -77,7 +86,17 @@ export function useBulkInstructionGeneration({
   };
 
   const generateInstructionsForPath = useCallback(
-    async (path: Path): Promise<boolean> => {
+    async (
+      path: Path,
+      onStreamProgress?: (
+        pathId: string,
+        progress: {
+          descriptiveSteps: number;
+          conciseInstructions: number;
+          totalSegments: number;
+        }
+      ) => void
+    ): Promise<boolean> => {
       try {
         // Make direct API call to generate instructions
         const response = await fetch(
@@ -105,6 +124,10 @@ export function useBulkInstructionGeneration({
         let completion = "";
         const decoder = new TextDecoder();
         let buffer = "";
+        const totalSegments = Math.max(
+          0,
+          (path.anchors?.length || 0) - 1
+        );
 
         while (true) {
           const { done, value } = await reader.read();
@@ -152,16 +175,28 @@ export function useBulkInstructionGeneration({
                   completion += parsed.choices[0].delta.content;
                 }
                 // Log unknown event types for debugging
-                else if (
-                  parsed.type &&
-                  ![
-                    "text-end",
-                    "finish-step",
-                    "finish",
-                    "text-delta",
-                  ].includes(parsed.type)
-                ) {
-                  console.log("Unknown event type:", parsed);
+                // else if (
+                //   parsed.type &&
+                //   ![
+                //     "text-end",
+                //     "finish-step",
+                //     "finish",
+                //     "text-delta",
+                //   ].includes(parsed.type)
+                // ) {
+                //   console.log("Unknown event type:", parsed);
+                // }
+
+                // Update progress on each chunk
+                if (onStreamProgress) {
+                  const parsedData =
+                    parseCompletionContent(completion);
+                  onStreamProgress(path.id, {
+                    descriptiveSteps: parsedData.steps.length,
+                    conciseInstructions:
+                      parsedData.conciseInstructions.length,
+                    totalSegments,
+                  });
                 }
               } catch (e) {
                 // Ignore invalid JSON
@@ -214,6 +249,7 @@ export function useBulkInstructionGeneration({
           acc[path.id] = "pending";
           return acc;
         }, {} as Record<string, "pending" | "generating" | "completed" | "failed">),
+        pathProgress: {},
       };
 
       setProgress(initialProgress);
@@ -253,7 +289,23 @@ export function useBulkInstructionGeneration({
 
         // Process batch concurrently
         const batchPromises = batch.map(async (path) => {
-          const success = await generateInstructionsForPath(path);
+          const success = await generateInstructionsForPath(
+            path,
+            (pathId, streamProgress) => {
+              // Update streaming progress
+              setProgress((currentProgress) => {
+                const updatedProgress = {
+                  ...currentProgress,
+                  pathProgress: {
+                    ...currentProgress.pathProgress,
+                    [pathId]: streamProgress,
+                  },
+                };
+                onProgress?.(updatedProgress);
+                return updatedProgress;
+              });
+            }
+          );
           results.push({ pathId: path.id, success });
 
           // Update individual path status

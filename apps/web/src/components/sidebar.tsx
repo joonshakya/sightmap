@@ -793,6 +793,14 @@ interface RoomListScreenProps {
       string,
       "pending" | "generating" | "completed" | "failed"
     >;
+    pathProgress: Record<
+      string,
+      {
+        descriptiveSteps: number;
+        conciseInstructions: number;
+        totalSegments: number;
+      }
+    >;
   };
 }
 
@@ -803,14 +811,54 @@ function RoomListScreen({
   isGeneratingInstructionInBulk = false,
   bulkProgress,
 }: RoomListScreenProps) {
-  // Calculate overall progress
-  const overallProgress = bulkProgress
-    ? Math.round(
-        ((bulkProgress.completedPaths + bulkProgress.failedPaths) /
-          bulkProgress.totalPaths) *
-          100
-      )
-    : 0;
+  // Calculate overall progress including streaming progress
+  const calculateOverallProgress = () => {
+    if (!bulkProgress) return 0;
+
+    // Start with completed paths
+    let totalProgress =
+      bulkProgress.completedPaths + bulkProgress.failedPaths;
+
+    // Add streaming progress from currently generating paths
+    Object.entries(bulkProgress.pathStatuses).forEach(
+      ([pathId, status]) => {
+        if (
+          status === "generating" &&
+          bulkProgress.pathProgress[pathId]
+        ) {
+          const pathProgress = bulkProgress.pathProgress[pathId];
+          const {
+            descriptiveSteps,
+            conciseInstructions,
+            totalSegments,
+          } = pathProgress;
+
+          if (totalSegments === 0) return;
+
+          // Calculate progress for this path (same logic as InstructionsScreen)
+          let pathProgressPercent = 0;
+          if (descriptiveSteps < totalSegments) {
+            // Still generating descriptive instructions (60% of progress)
+            pathProgressPercent =
+              (descriptiveSteps / totalSegments) * 60;
+          } else {
+            // Descriptive instructions complete, now concise instructions (40% of progress)
+            pathProgressPercent =
+              60 + (conciseInstructions / totalSegments) * 40;
+          }
+
+          // Add this path's progress contribution
+          totalProgress += pathProgressPercent / 100;
+        }
+      }
+    );
+
+    return Math.round(
+      (totalProgress / bulkProgress.totalPaths) * 100
+    );
+  };
+
+  const overallProgress = calculateOverallProgress();
 
   return (
     <div className="space-y-4">
