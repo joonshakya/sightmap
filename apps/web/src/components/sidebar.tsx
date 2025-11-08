@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CircularProgress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
@@ -955,6 +956,36 @@ function RoomListScreen({
                             "pending";
                           const connectedRoom = path.toRoom;
 
+                          // Calculate progress for generating paths
+                          const pathProgressData =
+                            bulkProgress?.pathProgress[path.id];
+                          const pathProgressPercent = pathProgressData
+                            ? (() => {
+                                const {
+                                  descriptiveSteps,
+                                  conciseInstructions,
+                                  totalSegments,
+                                } = pathProgressData;
+                                if (totalSegments === 0) return 0;
+                                if (
+                                  descriptiveSteps < totalSegments
+                                ) {
+                                  return (
+                                    (descriptiveSteps /
+                                      totalSegments) *
+                                    60
+                                  );
+                                } else {
+                                  return (
+                                    60 +
+                                    (conciseInstructions /
+                                      totalSegments) *
+                                      40
+                                  );
+                                }
+                              })()
+                            : 0;
+
                           return (
                             <div
                               key={path.id}
@@ -978,6 +1009,14 @@ function RoomListScreen({
                                   )}
                                   {status}
                                 </Badge>
+                                {status === "generating" && (
+                                  <CircularProgress
+                                    value={pathProgressPercent}
+                                    size={16}
+                                    strokeWidth={2}
+                                    className="flex-shrink-0"
+                                  />
+                                )}
                                 <span className="text-sm">
                                   → {connectedRoom.name} (
                                   {connectedRoom.number})
