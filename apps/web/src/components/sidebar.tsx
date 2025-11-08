@@ -920,8 +920,8 @@ function RoomListScreen({
             const hasPaths = fromPaths.length > 0;
 
             return (
-              <Card key={room.id} className="overflow-hidden">
-                <CardContent className="px-3">
+              <Card key={room.id} className="overflow-hidden p-0">
+                <CardContent className="px-0">
                   {/* Room Header */}
                   <div
                     className={`flex items-center justify-between p-3 ${
@@ -934,7 +934,7 @@ function RoomListScreen({
                       onRoomClick(room)
                     }
                   >
-                    <div>
+                    <div className="pl-2">
                       <h3 className="font-medium">{room.name}</h3>
                       <p className="text-sm text-gray-600">
                         {room.number}
