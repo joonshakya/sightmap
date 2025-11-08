@@ -258,8 +258,6 @@ ${conciseInstructions.join("\n")}
 EC
 `;
 
-    console.log(prompt);
-
     const result = streamText({
       model: google("gemma-3-27b-it"),
       prompt: prompt,

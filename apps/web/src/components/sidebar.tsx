@@ -603,7 +603,9 @@ function InstructionsScreen({
           <div className="space-y-4">
             {/* Instructions Display */}
             <div className="border border-gray-200 rounded-lg p-4 bg-white min-h-[200px]">
-              {!hasSavedInstructions && !parsedData.steps.length ? (
+              {!hasSavedInstructions &&
+              !parsedData.steps.length &&
+              !isLoading ? (
                 <p className="text-sm text-gray-500">
                   Click "Generate Instructions" to create navigation
                   instructions for this path.
@@ -611,36 +613,42 @@ function InstructionsScreen({
               ) : (
                 <div className="space-y-4">
                   {/* Descriptive Instructions */}
-                  {displaySteps.length > 0 && (
+                  {(displaySteps.length > 0 || isLoading) && (
                     <div>
                       <h4 className="font-semibold text-sm mb-2">
                         Descriptive Instructions:
                       </h4>
                       <div className="space-y-1">
-                        {displaySteps.map((stepText, index) => (
-                          <div
-                            key={index}
-                            className="text-sm text-gray-700"
-                          >
-                            {index + 1}. {stepText}
-                            {isLoading &&
-                            index === displaySteps.length - 1 &&
-                            displayConciseInstructions.length ===
-                              0 ? (
-                              <span
-                                style={{
-                                  fontSize: "1.0em",
-                                  fontWeight: "bold",
-                                }}
-                              >
-                                {" "}
-                                ●
-                              </span>
-                            ) : (
-                              ""
-                            )}
+                        {displaySteps.length > 0 ? (
+                          displaySteps.map((stepText, index) => (
+                            <div
+                              key={index}
+                              className="text-sm text-gray-700"
+                            >
+                              {index + 1}. {stepText}
+                              {isLoading &&
+                              index === displaySteps.length - 1 &&
+                              displayConciseInstructions.length ===
+                                0 ? (
+                                <span
+                                  style={{
+                                    fontSize: "1.0em",
+                                    fontWeight: "bold",
+                                  }}
+                                >
+                                  {" "}
+                                  ●
+                                </span>
+                              ) : (
+                                ""
+                              )}
+                            </div>
+                          ))
+                        ) : isLoading ? (
+                          <div className="text-sm text-gray-700">
+                            ●
                           </div>
-                        ))}
+                        ) : null}
                       </div>
                     </div>
                   )}
@@ -873,17 +881,19 @@ function RoomListScreen({
                       {overallProgress}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-gray-200 rounded-full h-1">
                     <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                      className="bg-blue-600 h-1 rounded-full transition-all duration-300 ease-out"
                       style={{ width: `${overallProgress}%` }}
                     />
                   </div>
                   <div className="text-xs text-gray-500">
                     Batch {bulkProgress.currentBatch}/
                     {bulkProgress.totalBatches} •{" "}
-                    {bulkProgress.completedPaths} completed •{" "}
-                    {bulkProgress.failedPaths} failed
+                    {bulkProgress.completedPaths} completed
+                    {bulkProgress.failedPaths > 0
+                      ? ` • ${bulkProgress.failedPaths} failed`
+                      : ""}
                   </div>
                 </div>
               </div>
@@ -932,9 +942,21 @@ function RoomListScreen({
                       <div className="border-t border-gray-100 p-2">
                         <div className="space-y-2">
                           {fromPaths.map((path) => {
-                            const status =
-                              bulkProgress?.pathStatuses[path.id] ||
-                              "pending";
+                            const hasInstructions =
+                              path.instructionSet &&
+                              ((path.instructionSet
+                                .descriptiveInstructions &&
+                                path.instructionSet
+                                  .descriptiveInstructions.length >
+                                  0) ||
+                                (path.instructionSet
+                                  .conciseInstructions &&
+                                  path.instructionSet
+                                    .conciseInstructions.length > 0));
+                            const status = hasInstructions
+                              ? "completed"
+                              : bulkProgress?.pathStatuses[path.id] ||
+                                "pending";
                             const connectedRoom = path.toRoom;
 
                             // Calculate progress for generating paths
@@ -974,27 +996,35 @@ function RoomListScreen({
                                 className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-md"
                               >
                                 <div className="flex items-center gap-2">
-                                  {status === "generating" && (
+                                  {status === "generating" &&
+                                    pathProgressPercent < 100 && (
+                                      <CircularProgress
+                                        value={pathProgressPercent}
+                                        size={16}
+                                        strokeWidth={4}
+                                        className="flex-shrink-0"
+                                      />
+                                    )}
+                                  {(status === "completed" ||
+                                    pathProgressPercent === 100) && (
+                                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                      <Check
+                                        className="w-3 h-3 text-white"
+                                        strokeWidth={3}
+                                      />
+                                    </div>
+                                  )}
+                                  {status === "pending" && (
                                     <CircularProgress
-                                      value={pathProgressPercent}
+                                      value={0}
                                       size={16}
-                                      strokeWidth={2}
+                                      strokeWidth={4}
                                       className="flex-shrink-0"
                                     />
                                   )}
-                                  {status === "completed" && (
-                                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                                      <Check className="w-3 h-3 text-white" />
-                                    </div>
-                                  )}
-                                  {(status === "pending" ||
-                                    status === "failed") && (
+                                  {status === "failed" && (
                                     <Badge
-                                      variant={
-                                        status === "failed"
-                                          ? "destructive"
-                                          : "outline"
-                                      }
+                                      variant="destructive"
                                       className="text-xs"
                                     >
                                       {status}
