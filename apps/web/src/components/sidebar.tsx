@@ -859,10 +859,17 @@ function RoomListScreen({
         bulkProgress && (
           <Card>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">
-                    {bulkGenerationCompleted
+                  <h3
+                    className={`font-semibold ${
+                      isGeneratingInstructionInBulk
+                        ? "generating-text-animation"
+                        : ""
+                    }`}
+                  >
+                    {!isGeneratingInstructionInBulk &&
+                    bulkGenerationCompleted
                       ? "Instructions Generated"
                       : "Generating Instructions"}
                   </h3>
@@ -873,27 +880,22 @@ function RoomListScreen({
                   </span>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">
-                      Overall Progress
-                    </span>
-                    <span className="font-medium">
-                      {overallProgress}%
-                    </span>
-                  </div>
                   <div className="w-full bg-gray-200 rounded-full h-1">
                     <div
                       className="bg-blue-600 h-1 rounded-full transition-all duration-300 ease-out"
                       style={{ width: `${overallProgress}%` }}
                     />
                   </div>
-                  <div className="text-xs text-gray-500">
-                    Batch {bulkProgress.currentBatch}/
-                    {bulkProgress.totalBatches} •{" "}
-                    {bulkProgress.completedPaths} completed
-                    {bulkProgress.failedPaths > 0
-                      ? ` • ${bulkProgress.failedPaths} failed`
-                      : ""}
+                  <div className="flex justify-between items-center text-xs text-gray-500">
+                    <span>
+                      Batch {bulkProgress.currentBatch}/
+                      {bulkProgress.totalBatches} •{" "}
+                      {bulkProgress.completedPaths} completed
+                      {bulkProgress.failedPaths > 0
+                        ? ` • ${bulkProgress.failedPaths} failed`
+                        : ""}
+                    </span>
+                    <span>{overallProgress}%</span>
                   </div>
                 </div>
               </div>
@@ -996,17 +998,15 @@ function RoomListScreen({
                                 className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-md"
                               >
                                 <div className="flex items-center gap-2">
-                                  {status === "generating" &&
-                                    pathProgressPercent < 100 && (
-                                      <CircularProgress
-                                        value={pathProgressPercent}
-                                        size={16}
-                                        strokeWidth={4}
-                                        className="flex-shrink-0"
-                                      />
-                                    )}
-                                  {(status === "completed" ||
-                                    pathProgressPercent === 100) && (
+                                  {status === "generating" && (
+                                    <CircularProgress
+                                      value={pathProgressPercent}
+                                      size={16}
+                                      strokeWidth={4}
+                                      className="flex-shrink-0"
+                                    />
+                                  )}
+                                  {status === "completed" && (
                                     <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
                                       <Check
                                         className="w-3 h-3 text-white"
@@ -1030,7 +1030,13 @@ function RoomListScreen({
                                       {status}
                                     </Badge>
                                   )}
-                                  <span className="text-sm">
+                                  <span
+                                    className={`text-sm ${
+                                      status === "generating"
+                                        ? "generating-text-animation"
+                                        : ""
+                                    }`}
+                                  >
                                     {connectedRoom.name} (
                                     {connectedRoom.number})
                                   </span>

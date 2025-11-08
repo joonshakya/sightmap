@@ -238,13 +238,16 @@ export function useBulkInstructionGeneration({
 
       setIsGenerating(true);
 
+      const results: { pathId: string; success: boolean }[] = [];
+      const batchSize = 10;
+
       // Initialize progress
       const initialProgress: BulkGenerationProgress = {
         totalPaths: paths.length,
         completedPaths: 0,
         failedPaths: 0,
         currentBatch: 0,
-        totalBatches: Math.ceil(paths.length / 10),
+        totalBatches: Math.ceil(paths.length / batchSize),
         pathStatuses: paths.reduce((acc, path) => {
           acc[path.id] = "pending";
           return acc;
@@ -256,9 +259,6 @@ export function useBulkInstructionGeneration({
 
       setProgress(initialProgress);
       onProgress?.(initialProgress);
-
-      const results: { pathId: string; success: boolean }[] = [];
-      const batchSize = 10;
 
       // Process paths in batches of 10
       for (
