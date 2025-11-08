@@ -25,6 +25,7 @@ import {
   Trash2,
   Loader2,
   Sparkles,
+  Check,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useBulkInstructionGeneration } from "@/hooks/useBulkInstructionGeneration";
@@ -129,6 +130,8 @@ export default function Sidebar({
     isGeneratingInstructionInBulk,
     setIsGeneratingInstructionInBulk,
   ] = useState(false);
+  const [bulkGenerationCompleted, setBulkGenerationCompleted] =
+    useState(false);
   const queryClient = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasUserBlurredRef = useRef(false);
@@ -150,6 +153,7 @@ export default function Sidebar({
       },
       onComplete: (results) => {
         setIsGeneratingInstructionInBulk(false);
+        setBulkGenerationCompleted(true);
       },
     });
 
@@ -187,6 +191,7 @@ export default function Sidebar({
   const handleBackToRooms = () => {
     setCurrentScreen("rooms");
     onRoomSelect(null);
+    setBulkGenerationCompleted(false);
   };
 
   const handleBackToDetails = () => {
@@ -376,6 +381,7 @@ export default function Sidebar({
             isGeneratingInstructionInBulk={
               isGeneratingInstructionInBulk
             }
+            bulkGenerationCompleted={bulkGenerationCompleted}
             bulkProgress={progress}
           />
         ) : currentScreen === "details" && selectedRoom ? (
@@ -595,31 +601,6 @@ function InstructionsScreen({
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-4">
-            {/* Progress Bar */}
-            {isLoading && totalSegments > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">
-                    Generating Instructions
-                  </span>
-                  <span className="font-medium">
-                    {Math.round(progressPercentage)}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
-                    style={{ width: `${progressPercentage}%` }}
-                  />
-                </div>
-                <div className="text-xs text-gray-500">
-                  {progressState.descriptiveSteps < totalSegments
-                    ? `Generating descriptive instructions (${progressState.descriptiveSteps}/${totalSegments})`
-                    : `Generating concise instructions (${progressState.conciseInstructions}/${totalSegments})`}
-                </div>
-              </div>
-            )}
-
             {/* Instructions Display */}
             <div className="border border-gray-200 rounded-lg p-4 bg-white min-h-[200px]">
               {!hasSavedInstructions && !parsedData.steps.length ? (
@@ -784,6 +765,7 @@ interface RoomListScreenProps {
   selectedRoomId: string | null;
   onRoomClick: (room: Room) => void;
   isGeneratingInstructionInBulk?: boolean;
+  bulkGenerationCompleted?: boolean;
   bulkProgress?: {
     totalPaths: number;
     completedPaths: number;
@@ -810,6 +792,7 @@ function RoomListScreen({
   selectedRoomId,
   onRoomClick,
   isGeneratingInstructionInBulk = false,
+  bulkGenerationCompleted = false,
   bulkProgress,
 }: RoomListScreenProps) {
   // Calculate overall progress including streaming progress
@@ -864,46 +847,49 @@ function RoomListScreen({
   return (
     <div className="space-y-4">
       {/* Bulk Generation Progress */}
-      {isGeneratingInstructionInBulk && bulkProgress && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold">
-                  Generating Instructions
-                </h3>
-                <span className="text-sm text-gray-600">
-                  {bulkProgress.completedPaths +
-                    bulkProgress.failedPaths}
-                  /{bulkProgress.totalPaths}
-                </span>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">
-                    Overall Progress
-                  </span>
-                  <span className="font-medium">
-                    {overallProgress}%
+      {(isGeneratingInstructionInBulk || bulkGenerationCompleted) &&
+        bulkProgress && (
+          <Card>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">
+                    {bulkGenerationCompleted
+                      ? "Instructions Generated"
+                      : "Generating Instructions"}
+                  </h3>
+                  <span className="text-sm text-gray-600">
+                    {bulkProgress.completedPaths +
+                      bulkProgress.failedPaths}
+                    /{bulkProgress.totalPaths}
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
-                    style={{ width: `${overallProgress}%` }}
-                  />
-                </div>
-                <div className="text-xs text-gray-500">
-                  Batch {bulkProgress.currentBatch}/
-                  {bulkProgress.totalBatches} •{" "}
-                  {bulkProgress.completedPaths} completed •{" "}
-                  {bulkProgress.failedPaths} failed
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">
+                      Overall Progress
+                    </span>
+                    <span className="font-medium">
+                      {overallProgress}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${overallProgress}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Batch {bulkProgress.currentBatch}/
+                    {bulkProgress.totalBatches} •{" "}
+                    {bulkProgress.completedPaths} completed •{" "}
+                    {bulkProgress.failedPaths} failed
+                  </div>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )}
 
       {/* Rooms List */}
       <div className="space-y-2">
@@ -925,15 +911,8 @@ function RoomListScreen({
                 <CardContent className="px-0">
                   {/* Room Header */}
                   <div
-                    className={`flex items-center justify-between p-3 ${
-                      !isGeneratingInstructionInBulk
-                        ? "cursor-pointer transition-colors hover:bg-gray-100"
-                        : ""
-                    }`}
-                    onClick={() =>
-                      !isGeneratingInstructionInBulk &&
-                      onRoomClick(room)
-                    }
+                    className={`flex items-center justify-between p-3 cursor-pointer transition-colors hover:bg-gray-100`}
+                    onClick={() => onRoomClick(room)}
                   >
                     <div className="pl-2">
                       <h3 className="font-medium">{room.name}</h3>
@@ -947,105 +926,109 @@ function RoomListScreen({
                   </div>
 
                   {/* Paths Sublist - only show fromPaths when in bulk mode */}
-                  {isGeneratingInstructionInBulk && hasPaths && (
-                    <div className="border-t border-gray-100 pt-2">
-                      <div className="space-y-2">
-                        {fromPaths.map((path) => {
-                          const status =
-                            bulkProgress?.pathStatuses[path.id] ||
-                            "pending";
-                          const connectedRoom = path.toRoom;
+                  {(isGeneratingInstructionInBulk ||
+                    bulkGenerationCompleted) &&
+                    hasPaths && (
+                      <div className="border-t border-gray-100 p-2">
+                        <div className="space-y-2">
+                          {fromPaths.map((path) => {
+                            const status =
+                              bulkProgress?.pathStatuses[path.id] ||
+                              "pending";
+                            const connectedRoom = path.toRoom;
 
-                          // Calculate progress for generating paths
-                          const pathProgressData =
-                            bulkProgress?.pathProgress[path.id];
-                          const pathProgressPercent = pathProgressData
-                            ? (() => {
-                                const {
-                                  descriptiveSteps,
-                                  conciseInstructions,
-                                  totalSegments,
-                                } = pathProgressData;
-                                if (totalSegments === 0) return 0;
-                                if (
-                                  descriptiveSteps < totalSegments
-                                ) {
-                                  return (
-                                    (descriptiveSteps /
-                                      totalSegments) *
-                                    60
-                                  );
-                                } else {
-                                  return (
-                                    60 +
-                                    (conciseInstructions /
-                                      totalSegments) *
-                                      40
-                                  );
-                                }
-                              })()
-                            : 0;
+                            // Calculate progress for generating paths
+                            const pathProgressData =
+                              bulkProgress?.pathProgress[path.id];
+                            const pathProgressPercent =
+                              pathProgressData
+                                ? (() => {
+                                    const {
+                                      descriptiveSteps,
+                                      conciseInstructions,
+                                      totalSegments,
+                                    } = pathProgressData;
+                                    if (totalSegments === 0) return 0;
+                                    if (
+                                      descriptiveSteps < totalSegments
+                                    ) {
+                                      return (
+                                        (descriptiveSteps /
+                                          totalSegments) *
+                                        60
+                                      );
+                                    } else {
+                                      return (
+                                        60 +
+                                        (conciseInstructions /
+                                          totalSegments) *
+                                          40
+                                      );
+                                    }
+                                  })()
+                                : 0;
 
-                          return (
-                            <div
-                              key={path.id}
-                              className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-md"
-                            >
-                              <div className="flex items-center gap-2">
+                            return (
+                              <div
+                                key={path.id}
+                                className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-md"
+                              >
+                                <div className="flex items-center gap-2">
+                                  {status === "generating" && (
+                                    <CircularProgress
+                                      value={pathProgressPercent}
+                                      size={16}
+                                      strokeWidth={2}
+                                      className="flex-shrink-0"
+                                    />
+                                  )}
+                                  {status === "completed" && (
+                                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                      <Check className="w-3 h-3 text-white" />
+                                    </div>
+                                  )}
+                                  {(status === "pending" ||
+                                    status === "failed") && (
+                                    <Badge
+                                      variant={
+                                        status === "failed"
+                                          ? "destructive"
+                                          : "outline"
+                                      }
+                                      className="text-xs"
+                                    >
+                                      {status}
+                                    </Badge>
+                                  )}
+                                  <span className="text-sm">
+                                    {connectedRoom.name} (
+                                    {connectedRoom.number})
+                                  </span>
+                                </div>
                                 <Badge
-                                  variant={
-                                    status === "completed"
-                                      ? "default"
-                                      : status === "failed"
-                                      ? "destructive"
-                                      : status === "generating"
-                                      ? "secondary"
-                                      : "outline"
-                                  }
+                                  variant="outline"
                                   className="text-xs"
                                 >
-                                  {status === "generating" && (
-                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                  )}
-                                  {status}
+                                  {(() => {
+                                    const anchorCount =
+                                      path.anchors?.length || 0;
+                                    const turns = Math.max(
+                                      0,
+                                      anchorCount - 2
+                                    );
+                                    return turns === 0
+                                      ? "no turns"
+                                      : `${turns} turn${
+                                          turns === 1 ? "" : "s"
+                                        }`;
+                                  })()}
                                 </Badge>
-                                {status === "generating" && (
-                                  <CircularProgress
-                                    value={pathProgressPercent}
-                                    size={16}
-                                    strokeWidth={2}
-                                    className="flex-shrink-0"
-                                  />
-                                )}
-                                <span className="text-sm">
-                                  → {connectedRoom.name} (
-                                  {connectedRoom.number})
-                                </span>
                               </div>
-                              <Badge
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                {(() => {
-                                  const anchorCount =
-                                    path.anchors?.length || 0;
-                                  const turns = Math.max(
-                                    0,
-                                    anchorCount - 2
-                                  );
-                                  return turns === 0
-                                    ? "no turns"
-                                    : `${turns} turn${
-                                        turns === 1 ? "" : "s"
-                                      }`;
-                                })()}
-                              </Badge>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </CardContent>
               </Card>
             );

@@ -252,6 +252,8 @@ export function useBulkInstructionGeneration({
         pathProgress: {},
       };
 
+      let currentStatuses = { ...initialProgress.pathStatuses };
+
       setProgress(initialProgress);
       onProgress?.(initialProgress);
 
@@ -271,17 +273,25 @@ export function useBulkInstructionGeneration({
         );
         const batch = paths.slice(batchStart, batchEnd);
 
-        // Update batch progress
+        // Update batch progress with current statuses
+        currentStatuses = {
+          ...currentStatuses,
+          ...batch.reduce((acc, path) => {
+            acc[path.id] = "generating";
+            return acc;
+          }, {} as Record<string, "generating">),
+        };
+
         const batchProgress = {
           ...initialProgress,
           currentBatch: batchIndex + 1,
-          pathStatuses: {
-            ...initialProgress.pathStatuses,
-            ...batch.reduce((acc, path) => {
-              acc[path.id] = "generating";
-              return acc;
-            }, {} as Record<string, "generating">),
-          },
+          completedPaths:
+            initialProgress.completedPaths +
+            results.filter((r) => r.success).length,
+          failedPaths:
+            initialProgress.failedPaths +
+            results.filter((r) => !r.success).length,
+          pathStatuses: currentStatuses,
         };
 
         setProgress(batchProgress);
@@ -309,21 +319,16 @@ export function useBulkInstructionGeneration({
           results.push({ pathId: path.id, success });
 
           // Update individual path status
-          const updatedStatuses: Record<
-            string,
-            "pending" | "generating" | "completed" | "failed"
-          > = {
-            ...batchProgress.pathStatuses,
+          currentStatuses = {
+            ...currentStatuses,
             [path.id]: success ? "completed" : "failed",
           };
 
           const updatedProgress: BulkGenerationProgress = {
             ...batchProgress,
-            completedPaths:
-              batchProgress.completedPaths + (success ? 1 : 0),
-            failedPaths:
-              batchProgress.failedPaths + (success ? 0 : 1),
-            pathStatuses: updatedStatuses,
+            completedPaths: results.filter((r) => r.success).length,
+            failedPaths: results.filter((r) => !r.success).length,
+            pathStatuses: currentStatuses,
           };
 
           setProgress(updatedProgress);
