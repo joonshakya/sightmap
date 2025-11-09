@@ -777,8 +777,6 @@ interface RoomListScreenProps {
   bulkGenerationCompleted?: boolean;
   bulkProgress?: {
     totalPaths: number;
-    completedPaths: number;
-    failedPaths: number;
     currentBatch: number;
     totalBatches: number;
     pathStatuses: Record<
@@ -808,14 +806,14 @@ function RoomListScreen({
   const calculateOverallProgress = () => {
     if (!bulkProgress) return 0;
 
-    // Start with completed paths
-    let totalProgress =
-      bulkProgress.completedPaths + bulkProgress.failedPaths;
+    let totalProgress = 0;
 
-    // Add streaming progress from currently generating paths
+    // Count completed and failed paths, add streaming progress for generating paths
     Object.entries(bulkProgress.pathStatuses).forEach(
       ([pathId, status]) => {
-        if (
+        if (status === "completed" || status === "failed") {
+          totalProgress += 1;
+        } else if (
           status === "generating" &&
           bulkProgress.pathProgress[pathId]
         ) {
@@ -852,6 +850,21 @@ function RoomListScreen({
   };
 
   const overallProgress = calculateOverallProgress();
+  const completedCount = bulkProgress
+    ? Object.values(bulkProgress.pathStatuses).filter(
+        (s) => s === "completed" || s === "failed"
+      ).length
+    : 0;
+  const completedPathsCount = bulkProgress
+    ? Object.values(bulkProgress.pathStatuses).filter(
+        (s) => s === "completed"
+      ).length
+    : 0;
+  const failedPathsCount = bulkProgress
+    ? Object.values(bulkProgress.pathStatuses).filter(
+        (s) => s === "failed"
+      ).length
+    : 0;
 
   return (
     <div className="space-y-4">
@@ -875,9 +888,7 @@ function RoomListScreen({
                       : "Generating Instructions"}
                   </h3>
                   <span className="text-sm text-gray-600">
-                    {bulkProgress.completedPaths +
-                      bulkProgress.failedPaths}
-                    /{bulkProgress.totalPaths}
+                    {completedCount}/{bulkProgress.totalPaths}
                   </span>
                 </div>
                 <div className="space-y-2">
@@ -891,9 +902,9 @@ function RoomListScreen({
                     <span>
                       Batch {bulkProgress.currentBatch}/
                       {bulkProgress.totalBatches} •{" "}
-                      {bulkProgress.completedPaths} completed
-                      {bulkProgress.failedPaths > 0
-                        ? ` • ${bulkProgress.failedPaths} failed`
+                      {completedPathsCount} completed
+                      {failedPathsCount > 0
+                        ? ` • ${failedPathsCount} failed`
                         : ""}
                     </span>
                     <span>{overallProgress}%</span>
@@ -992,15 +1003,6 @@ function RoomListScreen({
                                     }
                                   })()
                                 : 0;
-
-                            if (
-                              path.id === "cmhqfu3ha0029hxbyu9pxuzdn"
-                            ) {
-                              console.log(
-                                status,
-                                pathProgressPercent
-                              );
-                            }
 
                             return (
                               <div

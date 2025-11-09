@@ -10,8 +10,6 @@ type Path = Room["fromPaths"][number];
 
 interface BulkGenerationProgress {
   totalPaths: number;
-  completedPaths: number;
-  failedPaths: number;
   currentBatch: number;
   totalBatches: number;
   pathStatuses: Record<
@@ -44,8 +42,6 @@ export function useBulkInstructionGeneration({
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState<BulkGenerationProgress>({
     totalPaths: 0,
-    completedPaths: 0,
-    failedPaths: 0,
     currentBatch: 0,
     totalBatches: 0,
     pathStatuses: {},
@@ -240,8 +236,6 @@ export function useBulkInstructionGeneration({
       // Initialize progress
       const initialProgress: BulkGenerationProgress = {
         totalPaths: paths.length,
-        completedPaths: 0,
-        failedPaths: 0,
         currentBatch: 0,
         totalBatches: Math.ceil(paths.length / batchSize),
         pathStatuses: paths.reduce((acc, path) => {
@@ -281,12 +275,6 @@ export function useBulkInstructionGeneration({
         const batchProgress = {
           ...initialProgress,
           currentBatch: batchIndex + 1,
-          completedPaths:
-            initialProgress.completedPaths +
-            results.filter((r) => r.success).length,
-          failedPaths:
-            initialProgress.failedPaths +
-            results.filter((r) => !r.success).length,
           pathStatuses: currentStatuses,
         };
 
@@ -307,6 +295,31 @@ export function useBulkInstructionGeneration({
                     [pathId]: streamProgress,
                   },
                 };
+
+                // Check if progress is 100% and set status to completed optimistically
+                const pathProgressData =
+                  updatedProgress.pathProgress[pathId];
+                if (pathProgressData) {
+                  const {
+                    descriptiveSteps,
+                    conciseInstructions,
+                    totalSegments,
+                  } = pathProgressData;
+                  if (totalSegments > 0) {
+                    const progressPercent =
+                      descriptiveSteps < totalSegments
+                        ? (descriptiveSteps / totalSegments) * 60
+                        : 60 +
+                          (conciseInstructions / totalSegments) * 40;
+                    if (progressPercent >= 100) {
+                      updatedProgress.pathStatuses = {
+                        ...updatedProgress.pathStatuses,
+                        [pathId]: "completed",
+                      };
+                    }
+                  }
+                }
+
                 onProgress?.(updatedProgress);
                 return updatedProgress;
               });
@@ -322,12 +335,13 @@ export function useBulkInstructionGeneration({
 
           const updatedProgress: BulkGenerationProgress = {
             ...batchProgress,
-            completedPaths: results.filter((r) => r.success).length,
-            failedPaths: results.filter((r) => !r.success).length,
             pathStatuses: currentStatuses,
           };
 
-          setProgress(updatedProgress);
+          setProgress((current) => ({
+            ...updatedProgress,
+            pathProgress: current.pathProgress,
+          }));
           onProgress?.(updatedProgress);
 
           return success;
