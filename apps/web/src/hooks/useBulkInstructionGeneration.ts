@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { trpc } from "@/utils/trpc";
 import { toast } from "sonner";
 import type { RouterOutputs } from "@/utils/trpc";
+import { SERVER_URL } from "@/utils/constnats";
 
 type Room = RouterOutputs["floor"]["getFloorData"]["rooms"][number];
 type Path = Room["fromPaths"][number];
@@ -100,7 +101,7 @@ export function useBulkInstructionGeneration({
       try {
         // Make direct API call to generate instructions
         const response = await fetch(
-          `${import.meta.env.VITE_SERVER_URL}/generate-instructions`,
+          `${SERVER_URL}/generate-instructions`,
           {
             method: "POST",
             headers: {

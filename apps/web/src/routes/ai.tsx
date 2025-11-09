@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
 import { useRef, useEffect, useState } from "react";
 import { Response } from "@/components/response";
+import { SERVER_URL } from "@/utils/constnats";
 
 export const Route = createFileRoute("/ai")({
   component: RouteComponent,
@@ -15,7 +16,7 @@ function RouteComponent() {
   const [input, setInput] = useState("");
   const { messages, sendMessage } = useChat({
     transport: new DefaultChatTransport({
-      api: `${import.meta.env.VITE_SERVER_URL}/ai`,
+      api: `${SERVER_URL}/ai`,
     }),
   });
 

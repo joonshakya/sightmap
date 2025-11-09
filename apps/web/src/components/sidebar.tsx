@@ -32,6 +32,7 @@ import { useBulkInstructionGeneration } from "@/hooks/useBulkInstructionGenerati
 import type { RouterOutputs } from "@/utils/trpc";
 
 import type { StepSize } from "@sightmap/common/prisma/enums";
+import { SERVER_URL } from "@/utils/constnats";
 
 // Helper function to adjust step numbers in instruction text
 function adjustInstructionText(
@@ -434,7 +435,7 @@ function InstructionsScreen({
   onBack,
 }: InstructionsScreenProps) {
   const { completion, complete, isLoading } = useCompletion({
-    api: `${import.meta.env.VITE_SERVER_URL}/generate-instructions`,
+    api: `${SERVER_URL}/generate-instructions`,
   });
 
   // Fetch user settings for step size preference

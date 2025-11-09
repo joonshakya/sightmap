@@ -14,7 +14,10 @@ app.use(logger());
 app.use(
   "/*",
   cors({
-    origin: process.env.CORS_ORIGIN || "",
+    origin: [
+      process.env.CORS_ORIGIN as string,
+      "https://sightmap.joon.com.np",
+    ],
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization", "user-agent"],
     credentials: true,
