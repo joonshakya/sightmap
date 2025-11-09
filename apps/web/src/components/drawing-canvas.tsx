@@ -898,7 +898,6 @@ const DrawingCanvas = forwardRef<
     cancelPathCreation: () => void;
   },
   {
-    stageDimensions: { width: number; height: number };
     rooms: Room[];
     selectedRoomId: string | null;
     selectedPathId: string | null;
@@ -937,7 +936,6 @@ const DrawingCanvas = forwardRef<
 >(
   (
     {
-      stageDimensions,
       rooms,
       selectedRoomId,
       selectedPathId,
@@ -957,6 +955,11 @@ const DrawingCanvas = forwardRef<
     },
     ref
   ) => {
+    const [stageDimensions, setStageDimensions] = useState({
+      width: 0,
+      height: 0,
+    });
+
     const stageRef = useRef<any>(null);
 
     const startPathCreation = useCallback(
@@ -1056,6 +1059,24 @@ const DrawingCanvas = forwardRef<
       return () =>
         window.removeEventListener("keydown", handleKeyDown);
     }, [selectedRoomId, deleteSelectedRoom]);
+
+    // Handle window resize to update stage dimensions
+    useEffect(() => {
+      const handleResize = () => {
+        const container = document.querySelector(
+          ".w-full.h-full.relative"
+        ) as HTMLElement;
+        if (container) {
+          setStageDimensions({
+            width: container.clientWidth,
+            height: container.clientHeight,
+          });
+        }
+      };
+
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     // Generate grid lines
     const generateGrid = useCallback(() => {
@@ -1355,7 +1376,20 @@ const DrawingCanvas = forwardRef<
     };
 
     return (
-      <div className="w-full h-full relative">
+      <div
+        className="w-full h-full relative"
+        ref={(el) => {
+          if (
+            el &&
+            (!stageDimensions.width || !stageDimensions.height)
+          ) {
+            setStageDimensions({
+              width: el.clientWidth,
+              height: el.clientHeight,
+            });
+          }
+        }}
+      >
         {/* Save/Discard Buttons */}
         {pendingRooms.length > 0 && (
           <div className="absolute top-4 right-4 z-10 flex gap-2">
@@ -1376,7 +1410,7 @@ const DrawingCanvas = forwardRef<
           </div>
         )}
 
-        <div className="w-full h-full">
+        <div className="w-full h-full absolute">
           <Stage
             ref={stageRef}
             width={stageDimensions.width}

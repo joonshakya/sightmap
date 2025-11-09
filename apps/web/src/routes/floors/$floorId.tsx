@@ -36,10 +36,6 @@ function RouteComponent() {
     cancelPathCreation: () => void;
   } | null>(null);
 
-  const [stageDimensions, setStageDimensions] = useState({
-    width: 0,
-    height: 0,
-  });
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(
     null
   );
@@ -264,44 +260,28 @@ function RouteComponent() {
         currentPathPoints={currentPathPoints}
         onUndoLastPoint={handleUndoLastPoint}
       />
-      <div
-        className="flex-1"
-        ref={(el) => {
-          if (
-            el &&
-            (!stageDimensions.width || !stageDimensions.height)
-          ) {
-            setStageDimensions({
-              width: el.clientWidth,
-              height: el.clientHeight,
-            });
-          }
-        }}
-      >
-        {stageDimensions.width ? (
-          <DrawingCanvas
-            ref={drawingCanvasRef}
-            stageDimensions={stageDimensions}
-            rooms={floorData.data?.rooms || []}
-            selectedRoomId={selectedRoomId}
-            selectedPathId={selectedPathId}
-            onRoomSelect={(roomId) => {
-              setSelectedRoomId(roomId);
-              setSelectedPathId(null); // Clear path selection when room is selected
-            }}
-            onRoomUpdate={handleRoomUpdate}
-            onRoomCreate={handleRoomCreate}
-            onRoomDelete={handleRoomDelete}
-            gridSize={20}
-            onPathCreate={handlePathCreate}
-            onPathStateChange={setPathCreationState}
-            pathCreationState={pathCreationState}
-            pathDestinationRoomId={pathDestinationRoomId}
-            onPathDestinationRoomChange={setPathDestinationRoomId}
-            currentPathPoints={currentPathPoints}
-            onPathPointsChange={setCurrentPathPoints}
-          />
-        ) : null}
+      <div className="flex-1">
+        <DrawingCanvas
+          ref={drawingCanvasRef}
+          rooms={floorData.data?.rooms || []}
+          selectedRoomId={selectedRoomId}
+          selectedPathId={selectedPathId}
+          onRoomSelect={(roomId) => {
+            setSelectedRoomId(roomId);
+            setSelectedPathId(null); // Clear path selection when room is selected
+          }}
+          onRoomUpdate={handleRoomUpdate}
+          onRoomCreate={handleRoomCreate}
+          onRoomDelete={handleRoomDelete}
+          gridSize={20}
+          onPathCreate={handlePathCreate}
+          onPathStateChange={setPathCreationState}
+          pathCreationState={pathCreationState}
+          pathDestinationRoomId={pathDestinationRoomId}
+          onPathDestinationRoomChange={setPathDestinationRoomId}
+          currentPathPoints={currentPathPoints}
+          onPathPointsChange={setCurrentPathPoints}
+        />
       </div>
     </div>
   );
