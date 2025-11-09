@@ -993,6 +993,15 @@ function RoomListScreen({
                                   })()
                                 : 0;
 
+                            if (
+                              path.id === "cmhqfu3ha0029hxbyu9pxuzdn"
+                            ) {
+                              console.log(
+                                status,
+                                pathProgressPercent
+                              );
+                            }
+
                             return (
                               <div
                                 key={path.id}
@@ -1018,7 +1027,7 @@ function RoomListScreen({
                                   {status === "pending" && (
                                     <CircularProgress
                                       value={0}
-                                      size={16}
+                                      size={24}
                                       strokeWidth={4}
                                       className="flex-shrink-0"
                                     />

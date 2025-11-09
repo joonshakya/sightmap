@@ -56,11 +56,6 @@ export function useBulkInstructionGeneration({
 
   const saveInstructionsMutation = useMutation(
     trpc.floor.saveInstructions.mutationOptions({
-      onSuccess(data, variables, onMutateResult, context) {
-        context.client.invalidateQueries({
-          queryKey: trpc.floor.getFloorData.queryKey({ floorId }),
-        });
-      },
       onError: (error) => {
         toast.error("Failed to save instructions: " + error.message);
       },
@@ -344,6 +339,11 @@ export function useBulkInstructionGeneration({
 
       setIsGenerating(false);
       onComplete?.(results);
+
+      // Invalidate queries after bulk generation is complete
+      queryClient.invalidateQueries({
+        queryKey: trpc.floor.getFloorData.queryKey({ floorId }),
+      });
 
       const finalResults = results.filter((r) => r.success).length;
       toast.success(
