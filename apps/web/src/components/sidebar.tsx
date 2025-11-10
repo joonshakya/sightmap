@@ -19,6 +19,13 @@ import { CircularProgress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowLeft,
   MapPin,
   Route,
@@ -30,6 +37,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { useBulkInstructionGeneration } from "@/hooks/useBulkInstructionGeneration";
 import type { RouterOutputs } from "@/utils/trpc";
+import QRCode from "react-qr-code";
 
 import type { StepSize } from "@sightmap/common/prisma/enums";
 import { SERVER_URL } from "@/utils/constnats";
@@ -1148,6 +1156,7 @@ function RoomDetailsScreen({
 }: RoomDetailsScreenProps) {
   const connectedPaths = getConnectedPaths(room);
   const queryClient = useQueryClient();
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
 
   // Fetch user settings for step size adjustment in previews
   const { data: userSettings } = useQuery(
@@ -1194,9 +1203,35 @@ function RoomDetailsScreen({
       {/* Room Info */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            Room Information
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">
+              Room Information
+            </CardTitle>
+            <AlertDialog
+              open={isQRModalOpen}
+              onOpenChange={setIsQRModalOpen}
+            >
+              <AlertDialogTrigger asChild>
+                <button className="cursor-pointer">
+                  <QRCode
+                    value={`https://sightmap.joon.com.np/rooms/${room.id}`}
+                    size={32}
+                  />
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="max-w-sm">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Room QR Code</AlertDialogTitle>
+                </AlertDialogHeader>
+                <div className="flex justify-center p-4">
+                  <QRCode
+                    value={`https://sightmap.joon.com.np/rooms/${room.id}`}
+                    size={200}
+                  />
+                </div>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-3 text-sm">
