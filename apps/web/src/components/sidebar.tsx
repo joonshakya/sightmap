@@ -802,6 +802,10 @@ function RoomListScreen({
   bulkGenerationCompleted = false,
   bulkProgress,
 }: RoomListScreenProps) {
+  console.log({
+    rooms,
+  });
+
   // Calculate overall progress including streaming progress
   const calculateOverallProgress = () => {
     if (!bulkProgress) return 0;

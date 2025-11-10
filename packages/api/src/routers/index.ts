@@ -3,6 +3,7 @@ import { todoRouter } from "./todo";
 import { buildingRouter } from "./building";
 import { floorRouter } from "./floor";
 import { userSettingsRouter } from "./userSettings";
+import { roomRouter } from "./room";
 import type {
   inferRouterInputs,
   inferRouterOutputs,
@@ -13,6 +14,7 @@ export const appRouter = router({
   building: buildingRouter,
   floor: floorRouter,
   userSettings: userSettingsRouter,
+  room: roomRouter,
 });
 
 export type AppRouter = typeof appRouter;

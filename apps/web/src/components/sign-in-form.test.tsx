@@ -19,7 +19,12 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/auth-client", () => ({
   authClient: {
-    useSession: vi.fn(() => ({ isPending: false, data: null, error: null, refetch: vi.fn() })),
+    useSession: vi.fn(() => ({
+      isPending: false,
+      data: null,
+      error: null,
+      refetch: vi.fn(),
+    })),
     signIn: {
       email: vi.fn(),
     },
@@ -43,18 +48,24 @@ describe("SignInForm", () => {
     expect(screen.getByText("Welcome Back")).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign In" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sign In" })
+    ).toBeInTheDocument();
   });
 
   it("shows validation errors for invalid input", async () => {
     const user = userEvent.setup();
     render(<SignInForm onSwitchToSignUp={mockOnSwitchToSignUp} />);
 
-    const submitButton = screen.getByRole("button", { name: "Sign In" });
+    const submitButton = screen.getByRole("button", {
+      name: "Sign In",
+    });
     await user.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText("Invalid email address")).toBeInTheDocument();
+      expect(
+        screen.getByText("Invalid email address")
+      ).toBeInTheDocument();
       expect(
         screen.getByText("Password must be at least 8 characters")
       ).toBeInTheDocument();
@@ -64,13 +75,14 @@ describe("SignInForm", () => {
   it("calls signIn on valid submit and shows success toast", async () => {
     const user = userEvent.setup();
     const mockSignIn = vi.mocked(authClient.signIn.email);
-    mockSignIn.mockImplementation(async (credentials, options) => {
-      options?.onSuccess();
-    });
+    mockSignIn.mockImplementation(async (credentials, options) => {});
 
     render(<SignInForm onSwitchToSignUp={mockOnSwitchToSignUp} />);
 
-    await user.type(screen.getByLabelText("Email"), "test@example.com");
+    await user.type(
+      screen.getByLabelText("Email"),
+      "test@example.com"
+    );
     await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: "Sign In" }));
 
@@ -79,7 +91,9 @@ describe("SignInForm", () => {
         { email: "test@example.com", password: "password123" },
         expect.any(Object)
       );
-      expect(toast.success).toHaveBeenCalledWith("Sign in successful");
+      expect(toast.success).toHaveBeenCalledWith(
+        "Sign in successful"
+      );
     });
   });
 
@@ -99,7 +113,10 @@ describe("SignInForm", () => {
 
     render(<SignInForm onSwitchToSignUp={mockOnSwitchToSignUp} />);
 
-    await user.type(screen.getByLabelText("Email"), "test@example.com");
+    await user.type(
+      screen.getByLabelText("Email"),
+      "test@example.com"
+    );
     await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: "Sign In" }));
 
