@@ -24,6 +24,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  AlertDialogFooter,
+  AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import {
   ArrowLeft,
@@ -1214,7 +1216,7 @@ function RoomDetailsScreen({
               <AlertDialogTrigger asChild>
                 <button className="cursor-pointer">
                   <QRCode
-                    value={`https://sightmap.joon.com.np/rooms/${room.id}`}
+                    value={`${window.location.origin}/rooms/${room.id}`}
                     size={32}
                   />
                 </button>
@@ -1225,10 +1227,28 @@ function RoomDetailsScreen({
                 </AlertDialogHeader>
                 <div className="flex justify-center p-4">
                   <QRCode
-                    value={`https://sightmap.joon.com.np/rooms/${room.id}`}
+                    value={`${window.location.origin}/rooms/${room.id}`}
                     size={200}
                   />
                 </div>
+                <AlertDialogFooter className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      window.open(
+                        `${window.location.origin}/rooms/${room.id}`,
+                        "_blank"
+                      )
+                    }
+                  >
+                    Open Link
+                  </Button>
+                  <AlertDialogAction
+                    onClick={() => setIsQRModalOpen(false)}
+                  >
+                    Close
+                  </AlertDialogAction>
+                </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           </div>
