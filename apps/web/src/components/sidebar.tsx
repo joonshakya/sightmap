@@ -1214,7 +1214,7 @@ function RoomDetailsScreen({
               onOpenChange={setIsQRModalOpen}
             >
               <AlertDialogTrigger asChild>
-                <button className="cursor-pointer">
+                <button className="cursor-pointer bg-white hover:bg-gray-100 border border-gray-200 rounded p-1 transition-colors">
                   <QRCode
                     value={`${window.location.origin}/rooms/${room.id}`}
                     size={32}
