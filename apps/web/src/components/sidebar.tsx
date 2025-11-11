@@ -328,7 +328,7 @@ export default function Sidebar({
                 </h2>
               ) : (
                 <h2 className="text-lg font-semibold">
-                  Path Instructions
+                  Navigation Instructions
                 </h2>
               );
             })()
@@ -607,7 +607,7 @@ function InstructionsScreen({
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">
-            Path Instructions
+            Navigation Instructions
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
@@ -677,7 +677,7 @@ function InstructionsScreen({
                               key={index}
                               className="text-sm text-gray-700"
                             >
-                              {line}
+                              {index + 1}. {line}
                               {isLoading &&
                               index ===
                                 displayConciseInstructions.length -

@@ -216,10 +216,8 @@ export async function generateInstructions(pathId: string) {
 
     // Generate concise instructions (movement segments)
     const conciseInstructions = relativeSegments.map(
-      (segment, index) =>
-        `${index + 1}. ${segment.relativeDirection} {{${
-          segment.steps
-        }}} steps`
+      (segment) =>
+        `${segment.relativeDirection} {{${segment.steps}}} steps`
     );
 
     // Generate streaming instruction data with delimiters

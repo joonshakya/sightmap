@@ -128,7 +128,7 @@ function RouteComponent() {
     ) || [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="bg-gray-50">
       <div className="max-w-4xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
@@ -166,9 +166,6 @@ function RouteComponent() {
 
         {/* Instructions */}
         <Card>
-          <CardHeader>
-            <CardTitle>Instructions</CardTitle>
-          </CardHeader>
           <CardContent className="space-y-6">
             {/* Descriptive Instructions */}
             {adjustedDescriptiveInstructions.length > 0 && (
@@ -199,22 +196,19 @@ function RouteComponent() {
                 <h3 className="text-lg font-semibold mb-4">
                   Quick Reference
                 </h3>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="space-y-2">
-                    {adjustedConciseInstructions.map(
-                      (instruction: string, index: number) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-2"
-                        >
-                          <span className="text-gray-500">•</span>
-                          <span className="text-gray-700">
-                            {instruction}
-                          </span>
-                        </div>
-                      )
-                    )}
-                  </div>
+                <div className="space-y-3">
+                  {adjustedConciseInstructions.map(
+                    (instruction: string, index: number) => (
+                      <div key={index} className="flex gap-3">
+                        <span className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
+                          {index + 1}
+                        </span>
+                        <p className="text-gray-700 leading-relaxed pt-1">
+                          {instruction}
+                        </p>
+                      </div>
+                    )
+                  )}
                 </div>
               </div>
             )}

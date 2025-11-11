@@ -46,7 +46,7 @@ function RouteComponent() {
   const fromPaths = room?.fromPaths || [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="bg-gray-50">
       <div className="max-w-4xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
