@@ -281,6 +281,24 @@ export default function Sidebar({
     }
   };
 
+  // Keyboard shortcut for undoing path anchor in path creation mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.key === "z" || e.key === "Z") &&
+        (e.metaKey || e.ctrlKey) &&
+        pathCreationState === "drawing_path" &&
+        typeof onUndoLastPoint === "function" &&
+        currentPathPoints.length > 1
+      ) {
+        e.preventDefault();
+        onUndoLastPoint();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [pathCreationState, onUndoLastPoint, currentPathPoints]);
+
   return (
     <div
       className={`w-[26rem] bg-gray-50 border-r border-gray-200 h-full absolute overflow-y-auto ${className}`}
