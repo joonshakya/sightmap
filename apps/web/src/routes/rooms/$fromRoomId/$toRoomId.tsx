@@ -176,14 +176,17 @@ function RouteComponent() {
                 <div className="space-y-3">
                   {adjustedDescriptiveInstructions.map(
                     (instruction: string, index: number) => (
-                      <div key={index} className="flex gap-3">
+                      <p
+                        key={index}
+                        className="flex gap-3 items-center"
+                      >
                         <span className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
                           {index + 1}
                         </span>
-                        <p className="text-gray-700 leading-relaxed pt-1">
+                        <span className="text-gray-700 leading-relaxed">
                           {instruction}
-                        </p>
-                      </div>
+                        </span>
+                      </p>
                     )
                   )}
                 </div>

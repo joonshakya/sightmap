@@ -103,8 +103,10 @@ function RouteComponent() {
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-lg">
-                          To {path.toRoom.name} (Room{" "}
-                          {path.toRoom.number})
+                          <p>
+                            To {path.toRoom.name} (Room{" "}
+                            {path.toRoom.number})
+                          </p>
                         </CardTitle>
                         <Badge variant="secondary">
                           {path.anchors?.length || 0} points
