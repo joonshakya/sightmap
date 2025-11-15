@@ -7,7 +7,11 @@ export const buildingRouter = router({
   // Get all buildings with their floors
   getAll: publicProcedure.query(async () => {
     return await prisma.building.findMany({
-      include: { floors: true },
+      include: {
+        floors: {
+          orderBy: { level: "asc" },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
   }),
