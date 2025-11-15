@@ -1239,15 +1239,22 @@ function RoomDetailsScreen({
                   />
                 </button>
               </AlertDialogTrigger>
-              <AlertDialogContent className="max-w-sm">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Room QR Code</AlertDialogTitle>
-                </AlertDialogHeader>
-                <div className="flex justify-center p-4">
-                  <QRCode
-                    value={`${window.location.origin}/rooms/${room.id}`}
-                    size={200}
-                  />
+              <AlertDialogContent>
+                <div className="flex items-center gap-8 p-8">
+                  <div className="flex-1">
+                    <h2 className="text-6xl font-black text-black mb-2">
+                      {room.name}
+                    </h2>
+                    <p className="text-3xl font-bold text-black">
+                      Room {room.number}
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <QRCode
+                      value={`${window.location.origin}/rooms/${room.id}`}
+                      size={150}
+                    />
+                  </div>
                 </div>
                 <AlertDialogFooter className="flex gap-2">
                   <Button
