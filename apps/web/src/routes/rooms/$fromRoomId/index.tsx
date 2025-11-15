@@ -17,6 +17,8 @@ export const Route = createFileRoute("/rooms/$fromRoomId/")({
 function RouteComponent() {
   const { fromRoomId } = Route.useParams();
 
+  const navigate = Route.useNavigate();
+
   const roomData = useQuery(
     trpc.room.getRoomById.queryOptions({ roomId: fromRoomId })
   );
@@ -44,8 +46,6 @@ function RouteComponent() {
 
   const room = roomData.data;
   const fromPaths = room?.fromPaths || [];
-
-  const navigate = Route.useNavigate();
 
   return (
     <div className="bg-gray-50">
