@@ -45,6 +45,8 @@ function RouteComponent() {
   const room = roomData.data;
   const fromPaths = room?.fromPaths || [];
 
+  const navigate = Route.useNavigate();
+
   return (
     <div className="bg-gray-50">
       <div className="max-w-4xl mx-auto p-6">
@@ -93,23 +95,25 @@ function RouteComponent() {
           ) : (
             <div className="grid gap-4">
               {fromPaths.map((path) => (
-                <Link
-                  key={path.id}
-                  to="/rooms/$fromRoomId/$toRoomId"
-                  params={{ fromRoomId, toRoomId: path.toRoomId }}
-                  className="block"
+                <button
+                  key={path.toRoom.id}
+                  onClick={() => {
+                    navigate({
+                      href: `/rooms/${fromRoomId}/${path.toRoom.id}`,
+                    });
+                  }}
                 >
                   <Card className="hover:shadow-md transition-shadow cursor-pointer">
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-lg">
                           <p>
-                            To {path.toRoom.name} (Room{" "}
+                            {path.toRoom.name} (Room{" "}
                             {path.toRoom.number})
                           </p>
                         </CardTitle>
                         <Badge variant="secondary">
-                          {path.anchors?.length || 0} points
+                          {path.anchors?.length - 2 || 0} turns
                         </Badge>
                       </div>
                     </CardHeader>
@@ -121,13 +125,10 @@ function RouteComponent() {
                             0}{" "}
                           instruction steps available
                         </div>
-                        <div className="text-sm text-blue-600 font-medium">
-                          View Instructions →
-                        </div>
                       </div>
                     </CardContent>
                   </Card>
-                </Link>
+                </button>
               ))}
             </div>
           )}

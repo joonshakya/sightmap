@@ -173,23 +173,20 @@ function RouteComponent() {
                 <h3 className="text-lg font-semibold mb-4">
                   Step-by-Step Instructions
                 </h3>
-                <div className="space-y-3">
+                <ul className="space-y-3">
                   {adjustedDescriptiveInstructions.map(
                     (instruction: string, index: number) => (
-                      <p
+                      <li
                         key={index}
                         className="flex gap-3 items-center"
                       >
-                        <span className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
-                          {index + 1}
-                        </span>
                         <span className="text-gray-700 leading-relaxed">
-                          {instruction}
+                          {`Step ${index + 1}: ${instruction}`}
                         </span>
-                      </p>
+                      </li>
                     )
                   )}
-                </div>
+                </ul>
               </div>
             )}
 
