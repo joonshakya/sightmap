@@ -196,20 +196,20 @@ function RouteComponent() {
                 <h3 className="text-lg font-semibold mb-4">
                   Quick Reference
                 </h3>
-                <div className="space-y-3">
+                <ul className="space-y-3">
                   {adjustedConciseInstructions.map(
                     (instruction: string, index: number) => (
-                      <div key={index} className="flex gap-3">
-                        <span className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
-                          {index + 1}
+                      <li
+                        key={index}
+                        className="flex gap-3 items-center"
+                      >
+                        <span className="text-gray-700 leading-relaxed">
+                          {`Step ${index + 1}: ${instruction}`}
                         </span>
-                        <p className="text-gray-700 leading-relaxed pt-1">
-                          {instruction}
-                        </p>
-                      </div>
+                      </li>
                     )
                   )}
-                </div>
+                </ul>
               </div>
             )}
 

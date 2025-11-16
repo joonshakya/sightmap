@@ -144,7 +144,7 @@ export default function UserMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
         <StepSizeDropdown />
-        <DropdownMenuItem asChild>
+        <DropdownMenuItem className="focus:bg-destructive/25" asChild>
           <Button
             variant="destructive"
             className="w-full"

@@ -105,7 +105,7 @@ function RouteComponent() {
                 >
                   <Card className="hover:shadow-md transition-shadow cursor-pointer">
                     <CardHeader>
-                      <div className="flex items-center justify-between">
+                      <div className="flex text-left justify-between">
                         <CardTitle className="text-lg">
                           <p>
                             {path.toRoom.name} (Room{" "}

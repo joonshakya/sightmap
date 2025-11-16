@@ -1234,7 +1234,7 @@ function RoomDetailsScreen({
               <AlertDialogTrigger asChild>
                 <button className="cursor-pointer bg-white hover:bg-gray-100 border border-gray-200 rounded p-1 transition-colors">
                   <QRCode
-                    value={`${window.location.origin}/rooms/${room.id}`}
+                    value={`https://sightmap.joon.com.np/rooms/${room.id}`}
                     size={32}
                   />
                 </button>
@@ -1251,7 +1251,7 @@ function RoomDetailsScreen({
                   </div>
                   <div className="flex-shrink-0">
                     <QRCode
-                      value={`${window.location.origin}/rooms/${room.id}`}
+                      value={`https://sightmap.joon.com.np/rooms/${room.id}`}
                       size={150}
                     />
                   </div>
@@ -1261,7 +1261,7 @@ function RoomDetailsScreen({
                     variant="outline"
                     onClick={() =>
                       window.open(
-                        `${window.location.origin}/rooms/${room.id}`,
+                        `https://sightmap.joon.com.np/rooms/${room.id}`,
                         "_blank"
                       )
                     }
