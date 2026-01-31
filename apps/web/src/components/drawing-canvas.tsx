@@ -38,18 +38,8 @@ type PendingRoom = {
   doorY?: number;
 };
 
-type FloorImage = {
-  id: string;
-  floorId: string;
-  imageUrl: string;
-  x: number;
-  y: number;
-  scale: number;
-  opacity: number;
-  zIndex: number;
-  createdAt: Date;
-  updatedAt: Date;
-};
+type FloorImage =
+  RouterOutputs["floorImage"]["getFloorImages"][number];
 
 type RenderableRoom = Room | PendingRoom;
 
@@ -106,7 +96,7 @@ const screenToWorld = (
   screenPos: Position,
   panX: number,
   panY: number,
-  zoom: number,
+  zoom: number
 ): Position => ({
   x: (screenPos.x - panX) / zoom,
   y: (screenPos.y - panY) / zoom,
@@ -116,7 +106,7 @@ const worldToScreen = (
   worldPos: Position,
   panX: number,
   panY: number,
-  zoom: number,
+  zoom: number
 ): Position => ({
   x: worldPos.x * zoom + panX,
   y: worldPos.y * zoom + panY,
@@ -140,7 +130,7 @@ const snapToGrid = (pos: Position, gridSize: number): Position => ({
 
 const snapToGridCenter = (
   pos: Position,
-  gridSize: number,
+  gridSize: number
 ): Position => ({
   x: Math.floor(pos.x / gridSize) * gridSize + gridSize / 2,
   y: Math.floor(pos.y / gridSize) * gridSize + gridSize / 2,
@@ -149,7 +139,7 @@ const snapToGridCenter = (
 const getOrthogonalPrediction = (
   fromPoint: Position,
   mousePos: Position,
-  gridSize: number,
+  gridSize: number
 ): Position => {
   const dx = mousePos.x - fromPoint.x;
   const dy = mousePos.y - fromPoint.y;
@@ -178,11 +168,11 @@ const getOrthogonalPrediction = (
 const useRoomManagement = (
   rooms: Room[],
   onRoomUpdate: (
-    input: RouterInputs["floor"]["updateRoomCoordinates"],
+    input: RouterInputs["floor"]["updateRoomCoordinates"]
   ) => void,
   selectedRoomId: string | null,
   onRoomSelect: (roomId: string | null) => void,
-  onRoomDelete?: (roomId: string) => void,
+  onRoomDelete?: (roomId: string) => void
 ) => {
   const [pendingRooms, setPendingRooms] = useState<PendingRoom[]>([]);
 
@@ -191,7 +181,7 @@ const useRoomManagement = (
       const { doorX, doorY } = calculateDoorPosition(
         worldPos,
         room,
-        gridSize,
+        gridSize
       );
 
       if ("doorX" in room) {
@@ -209,12 +199,12 @@ const useRoomManagement = (
         // Pending room
         setPendingRooms((prev) =>
           prev.map((r) =>
-            r.id === room.id ? { ...r, doorX, doorY } : r,
-          ),
+            r.id === room.id ? { ...r, doorX, doorY } : r
+          )
         );
       }
     },
-    [onRoomUpdate],
+    [onRoomUpdate]
   );
 
   const snapRoomPosition = useCallback(
@@ -228,14 +218,14 @@ const useRoomManagement = (
 
       return { newX, newY };
     },
-    [],
+    []
   );
 
   const handleRoomDragEnd = useCallback(
     (
       e: KonvaEventObject<DragEvent>,
       room: Room,
-      gridSize: number,
+      gridSize: number
     ) => {
       const { newX, newY } = snapRoomPosition(e, gridSize);
 
@@ -247,37 +237,37 @@ const useRoomManagement = (
         height: room.height,
       });
     },
-    [onRoomUpdate, snapRoomPosition],
+    [onRoomUpdate, snapRoomPosition]
   );
 
   const handlePendingRoomDragEnd = useCallback(
     (
       e: KonvaEventObject<DragEvent>,
       room: PendingRoom,
-      gridSize: number,
+      gridSize: number
     ) => {
       const { newX, newY } = snapRoomPosition(e, gridSize);
 
       setPendingRooms((prev) =>
         prev.map((r) =>
-          r.id === room.id ? { ...r, x: newX, y: newY } : r,
-        ),
+          r.id === room.id ? { ...r, x: newX, y: newY } : r
+        )
       );
     },
-    [snapRoomPosition],
+    [snapRoomPosition]
   );
 
   const deleteSelectedRoom = useCallback(() => {
     if (!selectedRoomId) return;
 
     const savedRoom = rooms.find(
-      (room) => room.id === selectedRoomId,
+      (room) => room.id === selectedRoomId
     );
     if (savedRoom && onRoomDelete) {
       onRoomDelete(selectedRoomId);
     } else {
       setPendingRooms((prev) =>
-        prev.filter((room) => room.id !== selectedRoomId),
+        prev.filter((room) => room.id !== selectedRoomId)
       );
     }
     onRoomSelect(null);
@@ -291,8 +281,8 @@ const useRoomManagement = (
         width: number,
         height: number,
         doorX?: number,
-        doorY?: number,
-      ) => void,
+        doorY?: number
+      ) => void
     ) => {
       if (!onRoomCreate) return;
 
@@ -303,12 +293,12 @@ const useRoomManagement = (
           room.width,
           room.height,
           room.doorX,
-          room.doorY,
+          room.doorY
         );
       });
       setPendingRooms([]);
     },
-    [pendingRooms],
+    [pendingRooms]
   );
 
   return {
@@ -325,7 +315,7 @@ const useRoomManagement = (
 // Custom hook for drawing functionality
 const useDrawing = (
   gridSize: number,
-  onRoomCreated?: (room: PendingRoom) => void,
+  onRoomCreated?: (room: PendingRoom) => void
 ) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState<Position>({ x: 0, y: 0 });
@@ -346,7 +336,7 @@ const useDrawing = (
         setCurrentPos(worldPos);
       }
     },
-    [isDrawing],
+    [isDrawing]
   );
 
   const finishDrawing = useCallback(() => {
@@ -406,7 +396,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
       const clampedZoom = clamp(
         newZoom,
         config.zoomLimits.min,
-        config.zoomLimits.max,
+        config.zoomLimits.max
       );
 
       if (centerPoint) {
@@ -415,7 +405,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
           centerPoint,
           panX,
           panY,
-          zoom,
+          zoom
         );
         const newPanX = centerPoint.x - worldPoint.x * clampedZoom;
         const newPanY = centerPoint.y - worldPoint.y * clampedZoom;
@@ -426,7 +416,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
 
       setZoom(clampedZoom);
     },
-    [panX, panY, zoom, config.zoomLimits],
+    [panX, panY, zoom, config.zoomLimits]
   );
 
   const panBy = useCallback((deltaX: number, deltaY: number) => {
@@ -457,7 +447,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
         const newZoom = clamp(
           zoom * zoomFactor,
           config.zoomLimits.min,
-          config.zoomLimits.max,
+          config.zoomLimits.max
         );
 
         // Zoom towards mouse position
@@ -475,7 +465,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
         setPanY((panY) => panY - deltaY * panSensitivity);
       }
     },
-    [panX, panY, zoom, config],
+    [panX, panY, zoom, config]
   );
 
   const handleTouchStart = useCallback(
@@ -496,7 +486,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
         setLastDist(dist);
       }
     },
-    [],
+    []
   );
 
   const handleTouchMove = useCallback(
@@ -516,7 +506,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
         const newZoom = clamp(
           zoom * (dist / lastDist),
           config.zoomLimits.min,
-          config.zoomLimits.max,
+          config.zoomLimits.max
         );
 
         // Calculate pan adjustment to keep center point fixed
@@ -531,7 +521,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
         setLastDist(dist);
       }
     },
-    [lastDist, lastCenter, panX, panY, zoom, config.zoomLimits],
+    [lastDist, lastCenter, panX, panY, zoom, config.zoomLimits]
   );
 
   const handleTouchEnd = useCallback(
@@ -539,7 +529,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
       e.evt.preventDefault();
       setLastDist(0);
     },
-    [],
+    []
   );
 
   return {
@@ -561,7 +551,7 @@ const isCornerDoor = (
   doorY: number,
   roomWidth: number,
   roomHeight: number,
-  gridSize: number,
+  gridSize: number
 ): boolean => {
   const corners = [
     [0, 0],
@@ -576,7 +566,7 @@ const isCornerDoor = (
 const isOnRoomBorder = (
   pos: { x: number; y: number },
   room: RenderableRoom,
-  gridSize: number,
+  gridSize: number
 ) => {
   const { x, y, width, height } = room;
   const inBorderArea =
@@ -595,7 +585,7 @@ const isOnRoomBorder = (
 // Helper to check if point is in room interior
 const isInRoomInterior = (
   pos: { x: number; y: number },
-  room: RenderableRoom,
+  room: RenderableRoom
 ) => {
   const { x, y, width, height } = room;
   return (
@@ -610,7 +600,7 @@ const isInRoomInterior = (
 const calculateDoorPosition = (
   pos: { x: number; y: number },
   room: RenderableRoom,
-  gridSize: number,
+  gridSize: number
 ) => ({
   doorX: Math.floor((pos.x - room.x) / gridSize) * gridSize,
   doorY: Math.floor((pos.y - room.y) / gridSize) * gridSize,
@@ -642,16 +632,16 @@ const RoomComponent = ({
   const wallFill = isPending
     ? COLORS.wall.pending
     : isSelected
-      ? COLORS.wall.selected
-      : COLORS.wall.solid;
+    ? COLORS.wall.selected
+    : COLORS.wall.solid;
   const interiorFill = isPending
     ? COLORS.room.pending
     : COLORS.room.interior;
   const strokeColor = isSelected
     ? COLORS.selection
     : isPending
-      ? COLORS.room.pendingStroke
-      : COLORS.room.stroke;
+    ? COLORS.room.pendingStroke
+    : COLORS.room.stroke;
 
   const hasDoor =
     "doorX" in room
@@ -695,7 +685,7 @@ const RoomComponent = ({
           room.doorY!,
           room.width,
           room.height,
-          gridSize,
+          gridSize
         ) && (
           <Rect
             x={room.doorX!}
@@ -819,7 +809,7 @@ const PathVisualization = ({
                       stroke="#00ff00"
                       strokeWidth={gridSize}
                       opacity={0.8}
-                    />,
+                    />
                   );
                 }
                 return lines;
@@ -868,7 +858,7 @@ const PathCreationPreview = ({
           stroke="#00ff00"
           strokeWidth={gridSize}
           opacity={1}
-        />,
+        />
       );
     }
   });
@@ -879,7 +869,7 @@ const PathCreationPreview = ({
     const prediction = getOrthogonalPrediction(
       lastPoint,
       mousePos,
-      gridSize,
+      gridSize
     );
 
     elements.push(
@@ -895,7 +885,7 @@ const PathCreationPreview = ({
         strokeWidth={gridSize}
         opacity={0.5}
         dash={[5, 5]}
-      />,
+      />
     );
   }
 
@@ -910,7 +900,7 @@ const PathCreationPreview = ({
         height={gridSize}
         fill="#00ff00"
         opacity={1}
-      />,
+      />
     );
   });
 
@@ -928,7 +918,7 @@ const DrawingCanvas = forwardRef<
     selectedPathId: string | null;
     onRoomSelect: (roomId: string | null) => void;
     onRoomUpdate: (
-      input: RouterInputs["floor"]["updateRoomCoordinates"],
+      input: RouterInputs["floor"]["updateRoomCoordinates"]
     ) => void;
     onRoomCreate?: (
       x: number,
@@ -936,18 +926,18 @@ const DrawingCanvas = forwardRef<
       width: number,
       height: number,
       doorX?: number,
-      doorY?: number,
+      doorY?: number
     ) => void;
     onRoomDelete?: (roomId: string) => void;
     gridSize?: number;
     onPathCreate?: (
       fromRoomId: string,
       toRoomId: string,
-      anchors: Position[],
+      anchors: Position[]
     ) => void;
     onPathCreateStart?: (sourceRoomId: string) => void;
     onPathStateChange?: (
-      state: "idle" | "selecting_destination" | "drawing_path",
+      state: "idle" | "selecting_destination" | "drawing_path"
     ) => void;
     pathCreationState:
       | "idle"
@@ -965,7 +955,7 @@ const DrawingCanvas = forwardRef<
       x: number,
       y: number,
       scale: number,
-      opacity: number,
+      opacity: number
     ) => void;
     onImageUpdate: (
       id: string,
@@ -975,7 +965,7 @@ const DrawingCanvas = forwardRef<
         scale?: number;
         opacity?: number;
         zIndex?: number;
-      },
+      }
     ) => void;
     onImageDelete: (id: string) => void;
   }
@@ -1004,7 +994,7 @@ const DrawingCanvas = forwardRef<
       onImageUpdate,
       onImageDelete,
     },
-    ref,
+    ref
   ) => {
     const [stageDimensions, setStageDimensions] = useState({
       width: 0,
@@ -1017,12 +1007,12 @@ const DrawingCanvas = forwardRef<
       (sourceRoomId: string) => {
         onPathStateChange?.("selecting_destination");
       },
-      [onPathStateChange],
+      [onPathStateChange]
     );
 
     const getPathCreationState = useCallback(
       () => pathCreationState,
-      [pathCreationState],
+      [pathCreationState]
     );
 
     const cancelPathCreation = useCallback(() => {
@@ -1038,7 +1028,7 @@ const DrawingCanvas = forwardRef<
         getPathCreationState,
         cancelPathCreation,
       }),
-      [startPathCreation, getPathCreationState, cancelPathCreation],
+      [startPathCreation, getPathCreationState, cancelPathCreation]
     );
 
     // Mouse position for predictive line
@@ -1064,7 +1054,7 @@ const DrawingCanvas = forwardRef<
         ...DEFAULT_CONFIG,
         gridSize,
       }),
-      [gridSize],
+      [gridSize]
     );
 
     // Custom hooks for different functionalities
@@ -1081,7 +1071,7 @@ const DrawingCanvas = forwardRef<
       onRoomUpdate,
       selectedRoomId,
       onRoomSelect,
-      onRoomDelete,
+      onRoomDelete
     );
 
     const {
@@ -1126,7 +1116,7 @@ const DrawingCanvas = forwardRef<
     useEffect(() => {
       const handleResize = () => {
         const container = document.querySelector(
-          ".w-full.h-full.relative",
+          ".w-full.h-full.relative"
         ) as HTMLElement;
         if (container) {
           setStageDimensions({
@@ -1149,7 +1139,7 @@ const DrawingCanvas = forwardRef<
           image.src = `${window.location.origin}${img.imageUrl}`;
           image.onload = () => {
             setLoadedImages((prev) =>
-              new Map(prev).set(img.id, image),
+              new Map(prev).set(img.id, image)
             );
           };
         }
@@ -1158,7 +1148,7 @@ const DrawingCanvas = forwardRef<
 
     // Image upload handler
     const handleImageUpload = async (
-      e: React.ChangeEvent<HTMLInputElement>,
+      e: React.ChangeEvent<HTMLInputElement>
     ) => {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -1168,11 +1158,14 @@ const DrawingCanvas = forwardRef<
 
       try {
         const response = await fetch(
-          `${window.location.origin.replace(":3001", ":3000")}/upload-floor-image`,
+          `${window.location.origin.replace(
+            ":3001",
+            ":3000"
+          )}/upload-floor-image`,
           {
             method: "POST",
             body: formData,
-          },
+          }
         );
 
         if (!response.ok) throw new Error("Upload failed");
@@ -1211,7 +1204,7 @@ const DrawingCanvas = forwardRef<
             points={[x, startY, x, endY]}
             stroke={COLORS.grid}
             strokeWidth={1 / zoom}
-          />,
+          />
         );
       }
       // Horizontal lines
@@ -1222,7 +1215,7 @@ const DrawingCanvas = forwardRef<
             points={[startX, y, endX, y]}
             stroke={COLORS.grid}
             strokeWidth={1 / zoom}
-          />,
+          />
         );
       }
       return lines;
@@ -1247,7 +1240,7 @@ const DrawingCanvas = forwardRef<
 
       // Find clicked room (saved or pending) on border
       const clickedRoom = [...rooms, ...pendingRooms].find((room) =>
-        isOnRoomBorder(worldPos, room, gridSize),
+        isOnRoomBorder(worldPos, room, gridSize)
       );
 
       if (clickedRoom) {
@@ -1275,20 +1268,20 @@ const DrawingCanvas = forwardRef<
           selectedRoomId !== clickedRoom.id
         ) {
           const selectedRoom = rooms.find(
-            (r) => r.id === selectedRoomId,
+            (r) => r.id === selectedRoomId
           );
           // Only check connections for saved rooms (not pending rooms)
           const clickedSavedRoom = rooms.find(
-            (r) => r.id === clickedRoom.id,
+            (r) => r.id === clickedRoom.id
           );
           if (selectedRoom && clickedSavedRoom) {
             // Check if clicked room is connected to selected room
             const isConnected =
               selectedRoom.fromPaths.some(
-                (p) => p.toRoomId === clickedRoom.id,
+                (p) => p.toRoomId === clickedRoom.id
               ) ||
               clickedSavedRoom.fromPaths.some(
-                (p) => p.toRoomId === selectedRoomId,
+                (p) => p.toRoomId === selectedRoomId
               );
             if (isConnected) {
               roomToSelect = selectedRoomId; // Keep current selection
@@ -1302,7 +1295,7 @@ const DrawingCanvas = forwardRef<
 
       // Find clicked room interior
       const clickedRoomInterior = [...rooms, ...pendingRooms].find(
-        (room) => isInRoomInterior(worldPos, room),
+        (room) => isInRoomInterior(worldPos, room)
       );
 
       if (clickedRoomInterior) {
@@ -1323,7 +1316,7 @@ const DrawingCanvas = forwardRef<
           const clickedRoom = rooms.find(
             (room) =>
               isInRoomInterior(snappedPos, room) &&
-              room.id !== selectedRoomId,
+              room.id !== selectedRoomId
           );
 
           if (clickedRoom) {
@@ -1331,7 +1324,7 @@ const DrawingCanvas = forwardRef<
             onPathDestinationRoomChange?.(clickedRoom.id);
 
             const sourceRoom = rooms.find(
-              (r) => r.id === selectedRoomId,
+              (r) => r.id === selectedRoomId
             );
             if (
               sourceRoom &&
@@ -1343,7 +1336,7 @@ const DrawingCanvas = forwardRef<
                   x: sourceRoom.x + sourceRoom.doorX,
                   y: sourceRoom.y + sourceRoom.doorY,
                 },
-                gridSize,
+                gridSize
               );
               onPathStateChange?.("drawing_path");
               onPathPointsChange?.([sourceDoorPos]); // Start immediately from source door
@@ -1352,7 +1345,7 @@ const DrawingCanvas = forwardRef<
         } else if (pathCreationState === "drawing_path") {
           // Drawing path - check if orthogonal prediction is close to destination door
           const destRoom = rooms.find(
-            (room) => room.id === pathDestinationRoomId,
+            (room) => room.id === pathDestinationRoomId
           );
 
           if (
@@ -1366,7 +1359,7 @@ const DrawingCanvas = forwardRef<
             const orthogonalPos = getOrthogonalPrediction(
               lastPoint,
               worldPos,
-              gridSize,
+              gridSize
             );
 
             // Check if orthogonal prediction is close to destination door
@@ -1377,7 +1370,7 @@ const DrawingCanvas = forwardRef<
 
             const distanceToDoor = Math.sqrt(
               Math.pow(orthogonalPos.x - doorPos.x, 2) +
-                Math.pow(orthogonalPos.y - doorPos.y, 2),
+                Math.pow(orthogonalPos.y - doorPos.y, 2)
             );
 
             if (distanceToDoor < gridSize) {
@@ -1390,7 +1383,7 @@ const DrawingCanvas = forwardRef<
                 onPathCreate(
                   selectedRoomId,
                   destRoom.id,
-                  finalPoints,
+                  finalPoints
                 );
               }
               onPathStateChange?.("idle");
@@ -1408,7 +1401,7 @@ const DrawingCanvas = forwardRef<
             const orthogonalPos = getOrthogonalPrediction(
               lastPoint,
               worldPos,
-              gridSize,
+              gridSize
             );
             onPathPointsChange?.([
               ...currentPathPoints,
@@ -1429,7 +1422,7 @@ const DrawingCanvas = forwardRef<
         onPathStateChange,
         onPathPointsChange,
         onPathDestinationRoomChange,
-      ],
+      ]
     );
 
     const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
@@ -1457,14 +1450,14 @@ const DrawingCanvas = forwardRef<
       (e: KonvaEventObject<DragEvent>, room: Room) => {
         handleRoomDragEnd(e, room, gridSize);
       },
-      [handleRoomDragEnd, gridSize],
+      [handleRoomDragEnd, gridSize]
     );
 
     const handlePendingRoomDragEndWrapper = useCallback(
       (e: KonvaEventObject<DragEvent>, room: PendingRoom) => {
         handlePendingRoomDragEnd(e, room, gridSize);
       },
-      [handlePendingRoomDragEnd, gridSize],
+      [handlePendingRoomDragEnd, gridSize]
     );
 
     const handleImageDragEnd = useCallback(
@@ -1473,7 +1466,7 @@ const DrawingCanvas = forwardRef<
         const newY = e.target.y();
         onImageUpdate(id, { x: newX, y: newY });
       },
-      [onImageUpdate],
+      [onImageUpdate]
     );
 
     const handleSave = () => {
@@ -1487,7 +1480,7 @@ const DrawingCanvas = forwardRef<
           room.width,
           room.height,
           room.doorX,
-          room.doorY,
+          room.doorY
         );
       });
 
@@ -1553,7 +1546,7 @@ const DrawingCanvas = forwardRef<
             imageManipulationMode &&
             (() => {
               const selectedImage = floorImages.find(
-                (img) => img.id === selectedImageId,
+                (img) => img.id === selectedImageId
               );
               if (!selectedImage) return null;
               return (
@@ -1788,7 +1781,7 @@ const DrawingCanvas = forwardRef<
         </div>
       </div>
     );
-  },
+  }
 );
 
 export default DrawingCanvas;

@@ -54,7 +54,7 @@ export const floorRouter = router({
       z.object({
         buildingId: z.cuid(),
         level: z.number(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       return await prisma.floor.create({
@@ -98,7 +98,7 @@ export const floorRouter = router({
         height: z.number(),
         doorX: z.number().optional(),
         doorY: z.number().optional(),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       return await prisma.room.create({
@@ -153,7 +153,7 @@ export const floorRouter = router({
         height: z.number(),
         doorX: z.number().optional(),
         doorY: z.number().optional(),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       try {
@@ -192,7 +192,7 @@ export const floorRouter = router({
       z.object({
         roomId: z.cuid(),
         name: z.string(),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       try {
@@ -226,7 +226,7 @@ export const floorRouter = router({
       z.object({
         roomId: z.cuid(),
         number: z.string(),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       try {
@@ -264,9 +264,9 @@ export const floorRouter = router({
           z.object({
             x: z.number(),
             y: z.number(),
-          })
+          }),
         ),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       return await prisma.$transaction(async (tx) => {
@@ -313,7 +313,6 @@ export const floorRouter = router({
         throw error;
       }
     }),
-
   // Get all paths and rooms in a floor with data for DrawingCanvas
   getFloorData: publicProcedure
     .input(z.object({ floorId: z.cuid() }))
@@ -376,7 +375,7 @@ export const floorRouter = router({
             height: z.number(),
             doorX: z.number(),
             doorY: z.number(),
-          })
+          }),
         ),
         paths: z.array(
           z.object({
@@ -387,7 +386,7 @@ export const floorRouter = router({
                 index: z.number(),
                 xCoords: z.number(),
                 yCoords: z.number(),
-              })
+              }),
             ),
             instructionSet: z
               .object({
@@ -395,9 +394,9 @@ export const floorRouter = router({
                 conciseInstructions: z.array(z.string()),
               })
               .optional(),
-          })
+          }),
         ),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       return await prisma.$transaction(async (tx) => {
@@ -450,7 +449,7 @@ export const floorRouter = router({
 
           if (!fromRoom || !toRoom) {
             console.warn(
-              `Invalid room indices for path: ${pathData.fromRoomIndex} -> ${pathData.toRoomIndex}`
+              `Invalid room indices for path: ${pathData.fromRoomIndex} -> ${pathData.toRoomIndex}`,
             );
             continue;
           }
@@ -530,7 +529,7 @@ export const floorRouter = router({
         pathId: z.cuid(),
         descriptiveInstructions: z.array(z.string()),
         conciseInstructions: z.array(z.string()),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       return await prisma.instructionSet.upsert({
