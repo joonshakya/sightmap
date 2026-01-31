@@ -12,22 +12,24 @@
     "test:run": "vitest run"
   },
   "dependencies": {
-    "hono": "catalog:",
-    "@trpc/server": "catalog:",
-    "@hono/trpc-server": "^0.4.0",
-    "better-auth": "catalog:",
-    "ai": "catalog:",
     "@ai-sdk/google": "catalog:",
-    "dotenv": "catalog:",
-    "zod": "catalog:",
+    "@hono/trpc-server": "^0.4.0",
     "@sightmap/api": "workspace:*",
-    "@sightmap/common": "workspace:*",
     "@sightmap/auth": "workspace:*",
-    "@sightmap/db": "workspace:*"
+    "@sightmap/common": "workspace:*",
+    "@sightmap/db": "workspace:*",
+    "@trpc/server": "catalog:",
+    "ai": "catalog:",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "hono": "catalog:",
+    "multer": "^2.0.2",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "typescript": "catalog:",
     "@types/bun": "^1.2.6",
-    "tsdown": "catalog:"
+    "@types/multer": "^2.0.0",
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
   }
 }

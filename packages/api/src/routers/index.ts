@@ -4,6 +4,7 @@ import { buildingRouter } from "./building";
 import { floorRouter } from "./floor";
 import { userSettingsRouter } from "./userSettings";
 import { roomRouter } from "./room";
+import { floorImageRouter } from "./floorImage";
 import type {
   inferRouterInputs,
   inferRouterOutputs,
@@ -15,6 +16,7 @@ export const appRouter = router({
   floor: floorRouter,
   userSettings: userSettingsRouter,
   room: roomRouter,
+  floorImage: floorImageRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -37,10 +37,10 @@ function RouteComponent() {
   } | null>(null);
 
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(
-    null
+    null,
   );
   const [selectedPathId, setSelectedPathId] = useState<string | null>(
-    null
+    null,
   );
   const [pathCreationState, setPathCreationState] = useState<
     "idle" | "selecting_destination" | "drawing_path"
@@ -74,7 +74,11 @@ function RouteComponent() {
   };
 
   const floorData = useQuery(
-    trpc.floor.getFloorData.queryOptions({ floorId })
+    trpc.floor.getFloorData.queryOptions({ floorId }),
+  );
+
+  const floorImages = useQuery(
+    trpc.floorImage.getFloorImages.queryOptions({ floorId }),
   );
 
   const updateRoomCoordinates = useMutation(
@@ -84,7 +88,7 @@ function RouteComponent() {
           queryKey: trpc.floor.getFloorData.queryKey({ floorId }),
         });
       },
-    })
+    }),
   );
 
   const createRoom = useMutation(
@@ -94,7 +98,7 @@ function RouteComponent() {
           queryKey: trpc.floor.getFloorData.queryKey({ floorId }),
         });
       },
-    })
+    }),
   );
 
   const deleteRoom = useMutation(
@@ -104,7 +108,7 @@ function RouteComponent() {
           queryKey: trpc.floor.getFloorData.queryKey({ floorId }),
         });
       },
-    })
+    }),
   );
 
   const updateRoomName = useMutation(
@@ -114,7 +118,7 @@ function RouteComponent() {
           queryKey: trpc.floor.getFloorData.queryKey({ floorId }),
         });
       },
-    })
+    }),
   );
 
   const updateRoomNumber = useMutation(
@@ -124,7 +128,7 @@ function RouteComponent() {
           queryKey: trpc.floor.getFloorData.queryKey({ floorId }),
         });
       },
-    })
+    }),
   );
 
   const createPath = useMutation(
@@ -134,7 +138,7 @@ function RouteComponent() {
           queryKey: trpc.floor.getFloorData.queryKey({ floorId }),
         });
       },
-    })
+    }),
   );
 
   const deletePath = useMutation(
@@ -144,11 +148,47 @@ function RouteComponent() {
           queryKey: trpc.floor.getFloorData.queryKey({ floorId }),
         });
       },
-    })
+    }),
+  );
+
+  const createFloorImage = useMutation(
+    trpc.floorImage.createFloorImage.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: trpc.floorImage.getFloorImages.queryKey({
+            floorId,
+          }),
+        });
+      },
+    }),
+  );
+
+  const updateFloorImage = useMutation(
+    trpc.floorImage.updateFloorImage.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: trpc.floorImage.getFloorImages.queryKey({
+            floorId,
+          }),
+        });
+      },
+    }),
+  );
+
+  const deleteFloorImage = useMutation(
+    trpc.floorImage.deleteFloorImage.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: trpc.floorImage.getFloorImages.queryKey({
+            floorId,
+          }),
+        });
+      },
+    }),
   );
 
   const handleRoomUpdate = (
-    input: RouterInputs["floor"]["updateRoomCoordinates"]
+    input: RouterInputs["floor"]["updateRoomCoordinates"],
   ) => {
     updateRoomCoordinates.mutate(input);
   };
@@ -159,7 +199,7 @@ function RouteComponent() {
     width: number,
     height: number,
     doorX?: number,
-    doorY?: number
+    doorY?: number,
   ) => {
     const roomNumber = `Room ${
       (floorData.data?.rooms.length || 0) + 1
@@ -197,7 +237,7 @@ function RouteComponent() {
   const handlePathCreate = (
     fromRoomId: string,
     toRoomId: string,
-    anchors: { x: number; y: number }[]
+    anchors: { x: number; y: number }[],
   ) => {
     createPath.mutate({
       fromRoomId,
@@ -281,6 +321,24 @@ function RouteComponent() {
           onPathDestinationRoomChange={setPathDestinationRoomId}
           currentPathPoints={currentPathPoints}
           onPathPointsChange={setCurrentPathPoints}
+          floorId={floorId}
+          floorImages={floorImages.data || []}
+          onImageCreate={(imageUrl, x, y, scale, opacity) => {
+            createFloorImage.mutate({
+              floorId,
+              imageUrl,
+              x,
+              y,
+              scale,
+              opacity,
+            });
+          }}
+          onImageUpdate={(id, updates) => {
+            updateFloorImage.mutate({ id, ...updates });
+          }}
+          onImageDelete={(id) => {
+            deleteFloorImage.mutate({ id });
+          }}
         />
       </div>
     </div>

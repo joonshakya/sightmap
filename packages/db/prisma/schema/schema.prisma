@@ -27,7 +27,8 @@ model Floor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  rooms Room[]
+  rooms  Room[]
+  images FloorImage[]
 
   building   Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   buildingId String
@@ -109,4 +110,29 @@ model PathAnchor {
   yCoords Float
   path    Path   @relation(fields: [pathId], references: [id], onDelete: Cascade)
   pathId  String
+}
+
+model FloorImage {
+  id String @id @default(cuid())
+
+  floor   Floor  @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  floorId String
+
+  imageUrl String // Relative path to uploaded image
+
+  // Position on canvas
+  x Float @default(0)
+  y Float @default(0)
+
+  // Scale factor (1.0 = 1:1 pixel mapping)
+  scale Float @default(1.0)
+
+  // Transparency (0.0 = fully transparent, 1.0 = fully opaque)
+  opacity Float @default(0.5)
+
+  // Z-index for layering multiple images
+  zIndex Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

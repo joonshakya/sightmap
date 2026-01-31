@@ -7,11 +7,23 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { Stage, Layer, Rect, Line, Group, Text } from "react-konva";
+import {
+  Stage,
+  Layer,
+  Rect,
+  Line,
+  Group,
+  Text,
+  Image,
+} from "react-konva";
 import { Button } from "@/components/ui/button";
-import { Save } from "lucide-react";
+import { Save, Upload, Trash2 } from "lucide-react";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type { RouterInputs, RouterOutputs } from "@/utils/trpc";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 // Types
 type Room = RouterOutputs["floor"]["getFloorData"]["rooms"][number];
@@ -24,6 +36,19 @@ type PendingRoom = {
   height: number;
   doorX?: number;
   doorY?: number;
+};
+
+type FloorImage = {
+  id: string;
+  floorId: string;
+  imageUrl: string;
+  x: number;
+  y: number;
+  scale: number;
+  opacity: number;
+  zIndex: number;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 type RenderableRoom = Room | PendingRoom;
@@ -81,7 +106,7 @@ const screenToWorld = (
   screenPos: Position,
   panX: number,
   panY: number,
-  zoom: number
+  zoom: number,
 ): Position => ({
   x: (screenPos.x - panX) / zoom,
   y: (screenPos.y - panY) / zoom,
@@ -91,7 +116,7 @@ const worldToScreen = (
   worldPos: Position,
   panX: number,
   panY: number,
-  zoom: number
+  zoom: number,
 ): Position => ({
   x: worldPos.x * zoom + panX,
   y: worldPos.y * zoom + panY,
@@ -115,7 +140,7 @@ const snapToGrid = (pos: Position, gridSize: number): Position => ({
 
 const snapToGridCenter = (
   pos: Position,
-  gridSize: number
+  gridSize: number,
 ): Position => ({
   x: Math.floor(pos.x / gridSize) * gridSize + gridSize / 2,
   y: Math.floor(pos.y / gridSize) * gridSize + gridSize / 2,
@@ -124,7 +149,7 @@ const snapToGridCenter = (
 const getOrthogonalPrediction = (
   fromPoint: Position,
   mousePos: Position,
-  gridSize: number
+  gridSize: number,
 ): Position => {
   const dx = mousePos.x - fromPoint.x;
   const dy = mousePos.y - fromPoint.y;
@@ -153,11 +178,11 @@ const getOrthogonalPrediction = (
 const useRoomManagement = (
   rooms: Room[],
   onRoomUpdate: (
-    input: RouterInputs["floor"]["updateRoomCoordinates"]
+    input: RouterInputs["floor"]["updateRoomCoordinates"],
   ) => void,
   selectedRoomId: string | null,
   onRoomSelect: (roomId: string | null) => void,
-  onRoomDelete?: (roomId: string) => void
+  onRoomDelete?: (roomId: string) => void,
 ) => {
   const [pendingRooms, setPendingRooms] = useState<PendingRoom[]>([]);
 
@@ -166,7 +191,7 @@ const useRoomManagement = (
       const { doorX, doorY } = calculateDoorPosition(
         worldPos,
         room,
-        gridSize
+        gridSize,
       );
 
       if ("doorX" in room) {
@@ -184,12 +209,12 @@ const useRoomManagement = (
         // Pending room
         setPendingRooms((prev) =>
           prev.map((r) =>
-            r.id === room.id ? { ...r, doorX, doorY } : r
-          )
+            r.id === room.id ? { ...r, doorX, doorY } : r,
+          ),
         );
       }
     },
-    [onRoomUpdate]
+    [onRoomUpdate],
   );
 
   const snapRoomPosition = useCallback(
@@ -203,14 +228,14 @@ const useRoomManagement = (
 
       return { newX, newY };
     },
-    []
+    [],
   );
 
   const handleRoomDragEnd = useCallback(
     (
       e: KonvaEventObject<DragEvent>,
       room: Room,
-      gridSize: number
+      gridSize: number,
     ) => {
       const { newX, newY } = snapRoomPosition(e, gridSize);
 
@@ -222,37 +247,37 @@ const useRoomManagement = (
         height: room.height,
       });
     },
-    [onRoomUpdate, snapRoomPosition]
+    [onRoomUpdate, snapRoomPosition],
   );
 
   const handlePendingRoomDragEnd = useCallback(
     (
       e: KonvaEventObject<DragEvent>,
       room: PendingRoom,
-      gridSize: number
+      gridSize: number,
     ) => {
       const { newX, newY } = snapRoomPosition(e, gridSize);
 
       setPendingRooms((prev) =>
         prev.map((r) =>
-          r.id === room.id ? { ...r, x: newX, y: newY } : r
-        )
+          r.id === room.id ? { ...r, x: newX, y: newY } : r,
+        ),
       );
     },
-    [snapRoomPosition]
+    [snapRoomPosition],
   );
 
   const deleteSelectedRoom = useCallback(() => {
     if (!selectedRoomId) return;
 
     const savedRoom = rooms.find(
-      (room) => room.id === selectedRoomId
+      (room) => room.id === selectedRoomId,
     );
     if (savedRoom && onRoomDelete) {
       onRoomDelete(selectedRoomId);
     } else {
       setPendingRooms((prev) =>
-        prev.filter((room) => room.id !== selectedRoomId)
+        prev.filter((room) => room.id !== selectedRoomId),
       );
     }
     onRoomSelect(null);
@@ -266,8 +291,8 @@ const useRoomManagement = (
         width: number,
         height: number,
         doorX?: number,
-        doorY?: number
-      ) => void
+        doorY?: number,
+      ) => void,
     ) => {
       if (!onRoomCreate) return;
 
@@ -278,12 +303,12 @@ const useRoomManagement = (
           room.width,
           room.height,
           room.doorX,
-          room.doorY
+          room.doorY,
         );
       });
       setPendingRooms([]);
     },
-    [pendingRooms]
+    [pendingRooms],
   );
 
   return {
@@ -300,7 +325,7 @@ const useRoomManagement = (
 // Custom hook for drawing functionality
 const useDrawing = (
   gridSize: number,
-  onRoomCreated?: (room: PendingRoom) => void
+  onRoomCreated?: (room: PendingRoom) => void,
 ) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState<Position>({ x: 0, y: 0 });
@@ -321,7 +346,7 @@ const useDrawing = (
         setCurrentPos(worldPos);
       }
     },
-    [isDrawing]
+    [isDrawing],
   );
 
   const finishDrawing = useCallback(() => {
@@ -381,7 +406,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
       const clampedZoom = clamp(
         newZoom,
         config.zoomLimits.min,
-        config.zoomLimits.max
+        config.zoomLimits.max,
       );
 
       if (centerPoint) {
@@ -390,7 +415,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
           centerPoint,
           panX,
           panY,
-          zoom
+          zoom,
         );
         const newPanX = centerPoint.x - worldPoint.x * clampedZoom;
         const newPanY = centerPoint.y - worldPoint.y * clampedZoom;
@@ -401,7 +426,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
 
       setZoom(clampedZoom);
     },
-    [panX, panY, zoom, config.zoomLimits]
+    [panX, panY, zoom, config.zoomLimits],
   );
 
   const panBy = useCallback((deltaX: number, deltaY: number) => {
@@ -432,7 +457,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
         const newZoom = clamp(
           zoom * zoomFactor,
           config.zoomLimits.min,
-          config.zoomLimits.max
+          config.zoomLimits.max,
         );
 
         // Zoom towards mouse position
@@ -450,7 +475,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
         setPanY((panY) => panY - deltaY * panSensitivity);
       }
     },
-    [panX, panY, zoom, config]
+    [panX, panY, zoom, config],
   );
 
   const handleTouchStart = useCallback(
@@ -471,7 +496,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
         setLastDist(dist);
       }
     },
-    []
+    [],
   );
 
   const handleTouchMove = useCallback(
@@ -491,7 +516,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
         const newZoom = clamp(
           zoom * (dist / lastDist),
           config.zoomLimits.min,
-          config.zoomLimits.max
+          config.zoomLimits.max,
         );
 
         // Calculate pan adjustment to keep center point fixed
@@ -506,7 +531,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
         setLastDist(dist);
       }
     },
-    [lastDist, lastCenter, panX, panY, zoom, config.zoomLimits]
+    [lastDist, lastCenter, panX, panY, zoom, config.zoomLimits],
   );
 
   const handleTouchEnd = useCallback(
@@ -514,7 +539,7 @@ const usePanZoom = (config: DrawingCanvasConfig) => {
       e.evt.preventDefault();
       setLastDist(0);
     },
-    []
+    [],
   );
 
   return {
@@ -536,7 +561,7 @@ const isCornerDoor = (
   doorY: number,
   roomWidth: number,
   roomHeight: number,
-  gridSize: number
+  gridSize: number,
 ): boolean => {
   const corners = [
     [0, 0],
@@ -551,7 +576,7 @@ const isCornerDoor = (
 const isOnRoomBorder = (
   pos: { x: number; y: number },
   room: RenderableRoom,
-  gridSize: number
+  gridSize: number,
 ) => {
   const { x, y, width, height } = room;
   const inBorderArea =
@@ -570,7 +595,7 @@ const isOnRoomBorder = (
 // Helper to check if point is in room interior
 const isInRoomInterior = (
   pos: { x: number; y: number },
-  room: RenderableRoom
+  room: RenderableRoom,
 ) => {
   const { x, y, width, height } = room;
   return (
@@ -585,7 +610,7 @@ const isInRoomInterior = (
 const calculateDoorPosition = (
   pos: { x: number; y: number },
   room: RenderableRoom,
-  gridSize: number
+  gridSize: number,
 ) => ({
   doorX: Math.floor((pos.x - room.x) / gridSize) * gridSize,
   doorY: Math.floor((pos.y - room.y) / gridSize) * gridSize,
@@ -617,16 +642,16 @@ const RoomComponent = ({
   const wallFill = isPending
     ? COLORS.wall.pending
     : isSelected
-    ? COLORS.wall.selected
-    : COLORS.wall.solid;
+      ? COLORS.wall.selected
+      : COLORS.wall.solid;
   const interiorFill = isPending
     ? COLORS.room.pending
     : COLORS.room.interior;
   const strokeColor = isSelected
     ? COLORS.selection
     : isPending
-    ? COLORS.room.pendingStroke
-    : COLORS.room.stroke;
+      ? COLORS.room.pendingStroke
+      : COLORS.room.stroke;
 
   const hasDoor =
     "doorX" in room
@@ -670,7 +695,7 @@ const RoomComponent = ({
           room.doorY!,
           room.width,
           room.height,
-          gridSize
+          gridSize,
         ) && (
           <Rect
             x={room.doorX!}
@@ -794,7 +819,7 @@ const PathVisualization = ({
                       stroke="#00ff00"
                       strokeWidth={gridSize}
                       opacity={0.8}
-                    />
+                    />,
                   );
                 }
                 return lines;
@@ -843,7 +868,7 @@ const PathCreationPreview = ({
           stroke="#00ff00"
           strokeWidth={gridSize}
           opacity={1}
-        />
+        />,
       );
     }
   });
@@ -854,7 +879,7 @@ const PathCreationPreview = ({
     const prediction = getOrthogonalPrediction(
       lastPoint,
       mousePos,
-      gridSize
+      gridSize,
     );
 
     elements.push(
@@ -870,7 +895,7 @@ const PathCreationPreview = ({
         strokeWidth={gridSize}
         opacity={0.5}
         dash={[5, 5]}
-      />
+      />,
     );
   }
 
@@ -885,7 +910,7 @@ const PathCreationPreview = ({
         height={gridSize}
         fill="#00ff00"
         opacity={1}
-      />
+      />,
     );
   });
 
@@ -903,7 +928,7 @@ const DrawingCanvas = forwardRef<
     selectedPathId: string | null;
     onRoomSelect: (roomId: string | null) => void;
     onRoomUpdate: (
-      input: RouterInputs["floor"]["updateRoomCoordinates"]
+      input: RouterInputs["floor"]["updateRoomCoordinates"],
     ) => void;
     onRoomCreate?: (
       x: number,
@@ -911,18 +936,18 @@ const DrawingCanvas = forwardRef<
       width: number,
       height: number,
       doorX?: number,
-      doorY?: number
+      doorY?: number,
     ) => void;
     onRoomDelete?: (roomId: string) => void;
     gridSize?: number;
     onPathCreate?: (
       fromRoomId: string,
       toRoomId: string,
-      anchors: Position[]
+      anchors: Position[],
     ) => void;
     onPathCreateStart?: (sourceRoomId: string) => void;
     onPathStateChange?: (
-      state: "idle" | "selecting_destination" | "drawing_path"
+      state: "idle" | "selecting_destination" | "drawing_path",
     ) => void;
     pathCreationState:
       | "idle"
@@ -932,6 +957,27 @@ const DrawingCanvas = forwardRef<
     onPathDestinationRoomChange?: (roomId: string | null) => void;
     currentPathPoints: Position[];
     onPathPointsChange?: (points: Position[]) => void;
+    // Image-related props
+    floorId: string;
+    floorImages: FloorImage[];
+    onImageCreate: (
+      imageUrl: string,
+      x: number,
+      y: number,
+      scale: number,
+      opacity: number,
+    ) => void;
+    onImageUpdate: (
+      id: string,
+      updates: {
+        x?: number;
+        y?: number;
+        scale?: number;
+        opacity?: number;
+        zIndex?: number;
+      },
+    ) => void;
+    onImageDelete: (id: string) => void;
   }
 >(
   (
@@ -952,8 +998,13 @@ const DrawingCanvas = forwardRef<
       onPathDestinationRoomChange,
       currentPathPoints,
       onPathPointsChange,
+      floorId,
+      floorImages,
+      onImageCreate,
+      onImageUpdate,
+      onImageDelete,
     },
-    ref
+    ref,
   ) => {
     const [stageDimensions, setStageDimensions] = useState({
       width: 0,
@@ -966,12 +1017,12 @@ const DrawingCanvas = forwardRef<
       (sourceRoomId: string) => {
         onPathStateChange?.("selecting_destination");
       },
-      [onPathStateChange]
+      [onPathStateChange],
     );
 
     const getPathCreationState = useCallback(
       () => pathCreationState,
-      [pathCreationState]
+      [pathCreationState],
     );
 
     const cancelPathCreation = useCallback(() => {
@@ -987,7 +1038,7 @@ const DrawingCanvas = forwardRef<
         getPathCreationState,
         cancelPathCreation,
       }),
-      [startPathCreation, getPathCreationState, cancelPathCreation]
+      [startPathCreation, getPathCreationState, cancelPathCreation],
     );
 
     // Mouse position for predictive line
@@ -996,13 +1047,24 @@ const DrawingCanvas = forwardRef<
       y: 0,
     });
 
+    // Image-related state
+    const [selectedImageId, setSelectedImageId] = useState<
+      string | null
+    >(null);
+    const [imageManipulationMode, setImageManipulationMode] =
+      useState(false);
+    const [loadedImages, setLoadedImages] = useState<
+      Map<string, HTMLImageElement>
+    >(new Map());
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     // Configuration
     const config = useMemo<DrawingCanvasConfig>(
       () => ({
         ...DEFAULT_CONFIG,
         gridSize,
       }),
-      [gridSize]
+      [gridSize],
     );
 
     // Custom hooks for different functionalities
@@ -1019,7 +1081,7 @@ const DrawingCanvas = forwardRef<
       onRoomUpdate,
       selectedRoomId,
       onRoomSelect,
-      onRoomDelete
+      onRoomDelete,
     );
 
     const {
@@ -1064,7 +1126,7 @@ const DrawingCanvas = forwardRef<
     useEffect(() => {
       const handleResize = () => {
         const container = document.querySelector(
-          ".w-full.h-full.relative"
+          ".w-full.h-full.relative",
         ) as HTMLElement;
         if (container) {
           setStageDimensions({
@@ -1077,6 +1139,55 @@ const DrawingCanvas = forwardRef<
       window.addEventListener("resize", handleResize);
       return () => window.removeEventListener("resize", handleResize);
     }, []);
+
+    // Load images
+    useEffect(() => {
+      floorImages.forEach((img) => {
+        if (!loadedImages.has(img.id)) {
+          const image = new window.Image();
+          image.crossOrigin = "anonymous";
+          image.src = `${window.location.origin}${img.imageUrl}`;
+          image.onload = () => {
+            setLoadedImages((prev) =>
+              new Map(prev).set(img.id, image),
+            );
+          };
+        }
+      });
+    }, [floorImages, loadedImages]);
+
+    // Image upload handler
+    const handleImageUpload = async (
+      e: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append("image", file);
+
+      try {
+        const response = await fetch(
+          `${window.location.origin.replace(":3001", ":3000")}/upload-floor-image`,
+          {
+            method: "POST",
+            body: formData,
+          },
+        );
+
+        if (!response.ok) throw new Error("Upload failed");
+
+        const data = await response.json();
+        onImageCreate(data.imageUrl, 100, 100, 1.0, 0.5);
+      } catch (error) {
+        console.error("Error uploading image:", error);
+      }
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    };
 
     // Generate grid lines
     const generateGrid = useCallback(() => {
@@ -1100,7 +1211,7 @@ const DrawingCanvas = forwardRef<
             points={[x, startY, x, endY]}
             stroke={COLORS.grid}
             strokeWidth={1 / zoom}
-          />
+          />,
         );
       }
       // Horizontal lines
@@ -1111,7 +1222,7 @@ const DrawingCanvas = forwardRef<
             points={[startX, y, endX, y]}
             stroke={COLORS.grid}
             strokeWidth={1 / zoom}
-          />
+          />,
         );
       }
       return lines;
@@ -1136,7 +1247,7 @@ const DrawingCanvas = forwardRef<
 
       // Find clicked room (saved or pending) on border
       const clickedRoom = [...rooms, ...pendingRooms].find((room) =>
-        isOnRoomBorder(worldPos, room, gridSize)
+        isOnRoomBorder(worldPos, room, gridSize),
       );
 
       if (clickedRoom) {
@@ -1164,20 +1275,20 @@ const DrawingCanvas = forwardRef<
           selectedRoomId !== clickedRoom.id
         ) {
           const selectedRoom = rooms.find(
-            (r) => r.id === selectedRoomId
+            (r) => r.id === selectedRoomId,
           );
           // Only check connections for saved rooms (not pending rooms)
           const clickedSavedRoom = rooms.find(
-            (r) => r.id === clickedRoom.id
+            (r) => r.id === clickedRoom.id,
           );
           if (selectedRoom && clickedSavedRoom) {
             // Check if clicked room is connected to selected room
             const isConnected =
               selectedRoom.fromPaths.some(
-                (p) => p.toRoomId === clickedRoom.id
+                (p) => p.toRoomId === clickedRoom.id,
               ) ||
               clickedSavedRoom.fromPaths.some(
-                (p) => p.toRoomId === selectedRoomId
+                (p) => p.toRoomId === selectedRoomId,
               );
             if (isConnected) {
               roomToSelect = selectedRoomId; // Keep current selection
@@ -1191,7 +1302,7 @@ const DrawingCanvas = forwardRef<
 
       // Find clicked room interior
       const clickedRoomInterior = [...rooms, ...pendingRooms].find(
-        (room) => isInRoomInterior(worldPos, room)
+        (room) => isInRoomInterior(worldPos, room),
       );
 
       if (clickedRoomInterior) {
@@ -1212,7 +1323,7 @@ const DrawingCanvas = forwardRef<
           const clickedRoom = rooms.find(
             (room) =>
               isInRoomInterior(snappedPos, room) &&
-              room.id !== selectedRoomId
+              room.id !== selectedRoomId,
           );
 
           if (clickedRoom) {
@@ -1220,7 +1331,7 @@ const DrawingCanvas = forwardRef<
             onPathDestinationRoomChange?.(clickedRoom.id);
 
             const sourceRoom = rooms.find(
-              (r) => r.id === selectedRoomId
+              (r) => r.id === selectedRoomId,
             );
             if (
               sourceRoom &&
@@ -1232,7 +1343,7 @@ const DrawingCanvas = forwardRef<
                   x: sourceRoom.x + sourceRoom.doorX,
                   y: sourceRoom.y + sourceRoom.doorY,
                 },
-                gridSize
+                gridSize,
               );
               onPathStateChange?.("drawing_path");
               onPathPointsChange?.([sourceDoorPos]); // Start immediately from source door
@@ -1241,7 +1352,7 @@ const DrawingCanvas = forwardRef<
         } else if (pathCreationState === "drawing_path") {
           // Drawing path - check if orthogonal prediction is close to destination door
           const destRoom = rooms.find(
-            (room) => room.id === pathDestinationRoomId
+            (room) => room.id === pathDestinationRoomId,
           );
 
           if (
@@ -1255,7 +1366,7 @@ const DrawingCanvas = forwardRef<
             const orthogonalPos = getOrthogonalPrediction(
               lastPoint,
               worldPos,
-              gridSize
+              gridSize,
             );
 
             // Check if orthogonal prediction is close to destination door
@@ -1266,7 +1377,7 @@ const DrawingCanvas = forwardRef<
 
             const distanceToDoor = Math.sqrt(
               Math.pow(orthogonalPos.x - doorPos.x, 2) +
-                Math.pow(orthogonalPos.y - doorPos.y, 2)
+                Math.pow(orthogonalPos.y - doorPos.y, 2),
             );
 
             if (distanceToDoor < gridSize) {
@@ -1279,7 +1390,7 @@ const DrawingCanvas = forwardRef<
                 onPathCreate(
                   selectedRoomId,
                   destRoom.id,
-                  finalPoints
+                  finalPoints,
                 );
               }
               onPathStateChange?.("idle");
@@ -1297,7 +1408,7 @@ const DrawingCanvas = forwardRef<
             const orthogonalPos = getOrthogonalPrediction(
               lastPoint,
               worldPos,
-              gridSize
+              gridSize,
             );
             onPathPointsChange?.([
               ...currentPathPoints,
@@ -1318,7 +1429,7 @@ const DrawingCanvas = forwardRef<
         onPathStateChange,
         onPathPointsChange,
         onPathDestinationRoomChange,
-      ]
+      ],
     );
 
     const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
@@ -1346,14 +1457,23 @@ const DrawingCanvas = forwardRef<
       (e: KonvaEventObject<DragEvent>, room: Room) => {
         handleRoomDragEnd(e, room, gridSize);
       },
-      [handleRoomDragEnd, gridSize]
+      [handleRoomDragEnd, gridSize],
     );
 
     const handlePendingRoomDragEndWrapper = useCallback(
       (e: KonvaEventObject<DragEvent>, room: PendingRoom) => {
         handlePendingRoomDragEnd(e, room, gridSize);
       },
-      [handlePendingRoomDragEnd, gridSize]
+      [handlePendingRoomDragEnd, gridSize],
+    );
+
+    const handleImageDragEnd = useCallback(
+      (e: KonvaEventObject<DragEvent>, id: string) => {
+        const newX = e.target.x();
+        const newY = e.target.y();
+        onImageUpdate(id, { x: newX, y: newY });
+      },
+      [onImageUpdate],
     );
 
     const handleSave = () => {
@@ -1367,7 +1487,7 @@ const DrawingCanvas = forwardRef<
           room.width,
           room.height,
           room.doorX,
-          room.doorY
+          room.doorY,
         );
       });
 
@@ -1390,6 +1510,120 @@ const DrawingCanvas = forwardRef<
           }
         }}
       >
+        {/* Image Controls */}
+        <div className="absolute top-4 left-4 z-10 flex flex-col gap-4 bg-white/90 p-4 rounded-lg shadow-md border border-gray-200 w-72 backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <Label
+              htmlFor="image-mode"
+              className="text-sm font-medium"
+            >
+              Image Mode
+            </Label>
+            <Switch
+              id="image-mode"
+              checked={imageManipulationMode}
+              onCheckedChange={(checked) => {
+                setImageManipulationMode(checked);
+                if (!checked) setSelectedImageId(null);
+              }}
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleImageUpload}
+              disabled={false}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Image
+            </Button>
+          </div>
+
+          {selectedImageId &&
+            imageManipulationMode &&
+            (() => {
+              const selectedImage = floorImages.find(
+                (img) => img.id === selectedImageId,
+              );
+              if (!selectedImage) return null;
+              return (
+                <div className="flex flex-col gap-4 border-t pt-4">
+                  <div className="space-y-2">
+                    <Label>
+                      Opacity:{" "}
+                      {Math.round(selectedImage.opacity * 100)}%
+                    </Label>
+                    <Slider
+                      value={[selectedImage.opacity * 100]}
+                      min={0}
+                      max={100}
+                      step={1}
+                      onValueChange={(vals) => {
+                        onImageUpdate(selectedImage.id, {
+                          opacity: vals[0] / 100,
+                        });
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      Scale: {selectedImage.scale.toFixed(2)}x
+                    </Label>
+                    <div className="flex gap-2 items-center">
+                      <Slider
+                        value={[selectedImage.scale]}
+                        min={0.1}
+                        max={5}
+                        step={0.05}
+                        className="flex-1"
+                        onValueChange={(vals) => {
+                          onImageUpdate(selectedImage.id, {
+                            scale: vals[0],
+                          });
+                        }}
+                      />
+                      <Input
+                        type="number"
+                        className="w-20 h-8"
+                        value={selectedImage.scale}
+                        step={0.1}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (!isNaN(val) && val > 0) {
+                            onImageUpdate(selectedImage.id, {
+                              scale: val,
+                            });
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      onImageDelete(selectedImage.id);
+                      setSelectedImageId(null);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Image
+                  </Button>
+                </div>
+              );
+            })()}
+        </div>
+
         {/* Save/Discard Buttons */}
         {pendingRooms.length > 0 && (
           <div className="absolute top-4 right-4 z-10 flex gap-2">
@@ -1425,6 +1659,45 @@ const DrawingCanvas = forwardRef<
           >
             <Layer>
               <Group x={panX} y={panY} scaleX={zoom} scaleY={zoom}>
+                {/* Floor Images */}
+                {floorImages.map((img) => {
+                  const imageObj = loadedImages.get(img.id);
+                  if (!imageObj) return null;
+                  const isSelected = selectedImageId === img.id;
+
+                  return (
+                    <Image
+                      key={img.id}
+                      image={imageObj}
+                      x={img.x}
+                      y={img.y}
+                      width={imageObj.width * img.scale}
+                      height={imageObj.height * img.scale}
+                      opacity={img.opacity}
+                      draggable={imageManipulationMode}
+                      onClick={(e) => {
+                        if (imageManipulationMode) {
+                          e.cancelBubble = true;
+                          setSelectedImageId(img.id);
+                        }
+                      }}
+                      onTap={(e) => {
+                        if (imageManipulationMode) {
+                          e.cancelBubble = true;
+                          setSelectedImageId(img.id);
+                        }
+                      }}
+                      onDragEnd={(e) => handleImageDragEnd(e, img.id)}
+                      stroke={
+                        isSelected && imageManipulationMode
+                          ? "#007bff"
+                          : undefined
+                      }
+                      strokeWidth={2 / zoom}
+                    />
+                  );
+                })}
+
                 {/* Grid */}
                 {generateGrid()}
 
@@ -1515,7 +1788,7 @@ const DrawingCanvas = forwardRef<
         </div>
       </div>
     );
-  }
+  },
 );
 
 export default DrawingCanvas;
