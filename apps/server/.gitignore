@@ -55,5 +55,5 @@ lerna-debug.log*
 next-env.d.ts
 
 # images
-floor-images/*
-!floor-images/git-track.txt
+uploads/floor-images/*
+!uploads/floor-images/git-track.txt
