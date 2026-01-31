@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Save, Upload, Trash2 } from "lucide-react";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type { RouterInputs, RouterOutputs } from "@/utils/trpc";
+import { SERVER_URL } from "@/utils/constnats";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
@@ -1136,7 +1137,7 @@ const DrawingCanvas = forwardRef<
         if (!loadedImages.has(img.id)) {
           const image = new window.Image();
           image.crossOrigin = "anonymous";
-          image.src = `${window.location.origin}${img.imageUrl}`;
+          image.src = `${SERVER_URL}${img.imageUrl}`;
           image.onload = () => {
             setLoadedImages((prev) =>
               new Map(prev).set(img.id, image)
@@ -1158,10 +1159,7 @@ const DrawingCanvas = forwardRef<
 
       try {
         const response = await fetch(
-          `${window.location.origin.replace(
-            ":3001",
-            ":3000"
-          )}/upload-floor-image`,
+          `${SERVER_URL}/upload-floor-image`,
           {
             method: "POST",
             body: formData,
@@ -1652,45 +1650,6 @@ const DrawingCanvas = forwardRef<
           >
             <Layer>
               <Group x={panX} y={panY} scaleX={zoom} scaleY={zoom}>
-                {/* Floor Images */}
-                {floorImages.map((img) => {
-                  const imageObj = loadedImages.get(img.id);
-                  if (!imageObj) return null;
-                  const isSelected = selectedImageId === img.id;
-
-                  return (
-                    <Image
-                      key={img.id}
-                      image={imageObj}
-                      x={img.x}
-                      y={img.y}
-                      width={imageObj.width * img.scale}
-                      height={imageObj.height * img.scale}
-                      opacity={img.opacity}
-                      draggable={imageManipulationMode}
-                      onClick={(e) => {
-                        if (imageManipulationMode) {
-                          e.cancelBubble = true;
-                          setSelectedImageId(img.id);
-                        }
-                      }}
-                      onTap={(e) => {
-                        if (imageManipulationMode) {
-                          e.cancelBubble = true;
-                          setSelectedImageId(img.id);
-                        }
-                      }}
-                      onDragEnd={(e) => handleImageDragEnd(e, img.id)}
-                      stroke={
-                        isSelected && imageManipulationMode
-                          ? "#007bff"
-                          : undefined
-                      }
-                      strokeWidth={2 / zoom}
-                    />
-                  );
-                })}
-
                 {/* Grid */}
                 {generateGrid()}
 
@@ -1742,6 +1701,46 @@ const DrawingCanvas = forwardRef<
                     hasPaths={false}
                   />
                 ))}
+
+                {/* Floor Images - Rendered on top of rooms but only interactable in image mode */}
+                {floorImages.map((img) => {
+                  const imageObj = loadedImages.get(img.id);
+                  if (!imageObj) return null;
+                  const isSelected = selectedImageId === img.id;
+
+                  return (
+                    <Image
+                      key={img.id}
+                      image={imageObj}
+                      x={img.x}
+                      y={img.y}
+                      width={imageObj.width * img.scale}
+                      height={imageObj.height * img.scale}
+                      opacity={img.opacity}
+                      listening={imageManipulationMode}
+                      draggable={imageManipulationMode}
+                      onClick={(e) => {
+                        if (imageManipulationMode) {
+                          e.cancelBubble = true;
+                          setSelectedImageId(img.id);
+                        }
+                      }}
+                      onTap={(e) => {
+                        if (imageManipulationMode) {
+                          e.cancelBubble = true;
+                          setSelectedImageId(img.id);
+                        }
+                      }}
+                      onDragEnd={(e) => handleImageDragEnd(e, img.id)}
+                      stroke={
+                        isSelected && imageManipulationMode
+                          ? "#007bff"
+                          : undefined
+                      }
+                      strokeWidth={2 / zoom}
+                    />
+                  );
+                })}
 
                 {/* Path visualization */}
                 {rooms.map((room) => (
